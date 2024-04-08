@@ -1,0 +1,21 @@
+WIDGETS:= \
+	objs/widget.o \
+	objs/widget_image.o \
+	objs/widget_ttf.o \
+	objs/widget_linechart.o \
+	objs/widget_bar.o
+
+objs/widget.o: src/widget.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/widget_image.o: src/widgets/image.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/widget_ttf.o: src/widgets/ttf.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/widget_linechart.o: src/widgets/linechart.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/widget_bar.o: src/widgets/bar.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;

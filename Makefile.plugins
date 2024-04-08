@@ -1,0 +1,41 @@
+PLUGINS:= \
+	objs/plugin.o \
+	objs/plugin_exec.o \
+	objs/plugin_cpuinfo.o \
+	objs/plugin_meminfo.o \
+	objs/plugin_netinfo.o \
+	objs/plugin_file.o \
+	objs/plugin_fs.o \
+	objs/plugin_test.o \
+	objs/plugin_uname.o \
+	objs/plugin_uptime.o
+
+objs/plugin.o: src/plugin.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_exec.o: src/plugins/exec.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_cpuinfo.o: src/plugins/cpuinfo.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_meminfo.o: src/plugins/meminfo.cpp
+	 $(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_netinfo.o: src/plugins/netinfo.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_file.o: src/plugins/file.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_test.o: src/plugins/test.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_uname.o: src/plugins/uname.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_uptime.o: src/plugins/uptime.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_fs.o: src/plugins/fs.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;

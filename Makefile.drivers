@@ -1,0 +1,9 @@
+DRIVERS:= \
+	objs/driver.o \
+	objs/driver_dpf.o
+
+objs/driver.o: src/driver.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/driver_dpf.o: src/drivers/dpf.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;

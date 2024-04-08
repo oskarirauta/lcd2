@@ -1,0 +1,21 @@
+ACTIONS:= \
+	objs/action.o \
+	objs/action_log.o \
+	objs/action_setpage.o \
+	objs/action_prevpage.o \
+	objs/action_nextpage.o
+
+objs/action.o: src/action.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/action_log.o: src/actions/log.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/action_setpage.o: src/actions/setpage.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/action_prevpage.o: src/actions/prevpage.cpp
+	 $(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/action_nextpage.o: src/actions/nextpage.cpp
+	 $(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
