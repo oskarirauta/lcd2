@@ -1,0 +1,229 @@
+#  $Id$
+#  $URL$
+
+Variables {
+	tick		500
+	tack		100
+	minute		60000
+	UX		'/root/ux'
+	page		0
+	logo_seq	52
+}
+
+Display {
+	Driver          'DPF'
+	Port            'usb0'
+	Foreground      'ffffff'
+	#Background      '1A1A1A'
+	#Basecolor       '1A1A1A'
+	Background	'000000'
+	Basecolor	'000000'
+	Orientation     3 #0-3
+	Backlight       1
+}
+
+#Widget ubus_test {
+#	class 'Text'
+	#expression 'hello world'
+#	expression ubus('system.info', 'list')
+#	foreground 'ffffff'
+#	reload	1
+#	update	5000
+#}
+
+Widget Logo {
+	class	'Image'
+	file	UX . '/static/openwrt_logo_small.png'
+	file	openwrt_logo_small.png
+	scale	100
+	reload	1
+	#update	1000
+	#visible	page > 0 ? 1 : 0
+}
+
+Widget Intrepid_logo {
+	class	'Image'
+	file	UX . '/static/intrepid_logo.png'
+	scale	100
+	reload	1
+	visible	page > 0 ? 1 : 0
+}
+
+Widget clock_hour1 {
+	class	'image'
+	file	UX . '/digits/' . substr(strftime('%H', time()), 0, 1) . '.png'
+	update	1000
+	reload	1
+	visible	page > 0 ? 1 : 0
+}	
+
+Widget clock_hour2 {
+	class	'image'
+	file	UX . '/digits/' . substr(strftime('%H', time()), 1) . '.png'
+	update	1000
+	reload	1
+	visible	page > 0 ? 1 : 0
+}
+
+Widget clock_minute1 {
+	class	'image'
+	file	UX . '/digits/' . substr(strftime('%M', time()), 0, 1) . '.png'
+	update	1000
+	reload	1
+	visible	page > 0 ? 1 : 0
+}
+
+Widget clock_minute2 {
+	class	'image'
+	file	UX . '/digits/' . substr(strftime('%M', time()), 1) . '.png'
+	update	1000
+	reload	1
+	visible	page > 0 ? 1 : 0
+}
+
+Widget clock_dp {
+	class	'image'
+	file	UX . '/digits/dp_' . ( substr(strftime('%S', time()), 1) % 2 == 0 ? 'odd' : 'even' ) . '.png'
+	update	1000
+	reload	1
+	visible	page > 0 ? 1 : 0
+}
+
+Widget Speedtest {
+	class	'Image'
+	file	UX . '/images/speedtest.png'
+	scale	100
+	#visible	page == 2 ? 1 : 0
+	update	1000
+	reload	1
+	visible	page == 1 ? 1 : 0
+}
+
+Widget System_summary {
+	class	'Image'
+	file	UX . '/images/system_summary.png'
+	scale	100
+	#visible	page == 1 ? 1 : 0
+	update	1000
+	reload	1
+	visible	page == 1 ? 1 : 0
+}
+
+Widget Next_Layout {
+	class	'Timer'
+	active	1
+	update	1000
+	expression page = ( logo_seq == 0 | logo_seq < 61 ) ? 0 : 1
+}
+
+Widget Logo_updater {
+	class	'Timer'
+	active	1
+	update	300
+	expression logo_seq = logo_seq < 62 ? ( logo_seq + 1 ) : 61
+	#expression layout::layoutname != 'network' ? layout::layout(1,2)
+	#expression logo_seq < 62 ? logo_seq++ : layout::layout(1,2)
+}
+
+Widget Logo_updater2 {
+	class	'Timer'
+	active	logo_seq > 60 ? 1 : 0
+	update	5000
+	expression layout::next(0)
+	#expression	layout::layout(2)
+	#expression logo_seq > 60 ? layot::layout(1,2) : logo_seq += 1
+	#expression layout::layout(1,2)
+	#expression layout::next(1)
+}
+
+Widget traffic_chart {
+	class	'linechart'
+	expression exec(UX . '/ds/rate.sh', 1000)
+	#expression 0
+	min	0
+	max	100
+	width	318
+	height	44
+	fcolor	'15ee15ee'
+	bcolor	'00820042'
+	#background '111111'
+	background '00000024'
+	update	1000
+	reload	1
+	visible	page == 1 ? 1 : 0
+}
+
+Widget traffic_bg {
+	class	'Image'
+	#file	UX . '/static/traffic_overlay.png'
+	file	UX . '/images/traffic_bg.png'
+	scale	100
+	visible	page == 1 ? 1 : 0
+}
+
+Widget cerberus_img {
+	class	'image'
+	file	UX . '/static/anim/cerberus_' . ( logo_seq > 8 ? ( logo_seq > 29 ? ( logo_seq > 37 ? 0 : 38 - logo_seq ) : 8 ) : logo_seq ) . '.png'
+	scale	100
+	visible	page == 0 ? 1 : 0
+	update	350
+	reload	1
+}
+
+Widget cerberus_txt {
+	class	'image'
+	file	UX . '/static/anim/text_' . ( logo_seq > 29 ? ( logo_seq > 50 ? ( logo_seq < 61 ? logo_seq : 60 ) : 29 ) : logo_seq ) . '.png'
+	scale	100
+	visible	page == 0 ? 1 : 0
+	update	350
+	reload	1
+}
+
+Layout {
+
+	#ROW1.COL1		'ubus_test'
+
+	Page 0 {
+
+		Layer 3 {
+			X200.Y1		'cerberus_txt'
+			#X145.Y1		'traffic_bg'
+		}
+
+		Layer 4 {
+			X1.Y1		'cerberus_img'
+			X8.Y6		'Logo'
+			X9.Y104		'Intrepid_logo'
+
+			X8.Y266		'clock_hour1'
+			X8.Y276		'clock_hour2'
+			X8.Y286		'clock_dp'
+			X8.Y295		'clock_minute1'
+			X8.Y305		'clock_minute2'
+
+			X31.Y2		'System_summary'
+			X31.Y147	'Speedtest'
+
+			X145.Y1		'traffic_chart'
+		}
+
+		Layer 5 {
+			X145.Y1		'traffic_bg'
+		}
+
+		Timer1	'Next_Layout'
+		Timer2	'Logo_updater'
+	}
+
+	Page 1 {
+
+		X1.Y1	'cerberus_img'
+
+		Layer 3 {
+			X200.Y1		'cerberus_txt'
+		}
+	}
+
+	Timer1 'Logo_updater'
+	Timer2 'Logo_updater2'
+}
