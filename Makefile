@@ -3,15 +3,16 @@ all: world
 # requires libusb-compat
 
 CXX?=g++
-CXXFLAGS?=--std=c++23 -Os -Wall -fPIC
+CXXFLAGS?=--std=c++23 -Os -Wall -fPIC -g
 LDFLAGS?=-L/lib -L/usr/lib
 
-CXXFLAGS+= -g
-
 INCLUDES+= -I./include
+
 #INCLUDES+= -I./include -I./jsoncpp/include
 #LIBS:=-lubox -lubus -lblobmsg_json
+
 LIBS:=-lgd -lusb
+#for ubuntu:
 
 include cpu/Makefile.inc
 include mem/Makefile.inc
