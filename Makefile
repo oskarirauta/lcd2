@@ -4,15 +4,12 @@ all: world
 
 CXX?=g++
 CXXFLAGS?=--std=c++23 -Os -Wall -fPIC -g
-LDFLAGS?=-L/lib -L/usr/lib
+LDFLAGS?=-L/lib -L/usr/lib -lgd -lusb
 
 INCLUDES+= -I./include
 
 #INCLUDES+= -I./include -I./jsoncpp/include
 #LIBS:=-lubox -lubus -lblobmsg_json
-
-LIBS:=-lgd -lusb
-#for ubuntu:
 
 include cpu/Makefile.inc
 include mem/Makefile.inc
@@ -80,9 +77,8 @@ lcd2: $(COMMON_OBJS) $(LOGGER_OBJS) $(THROWS_OBJS) \
 	$(NETINFO_OBJS) $(CPU_OBJS) $(MEM_OBJS) $(PROCESS_OBJS) \
 	$(UPTIME_OBJS) $(SIGNAL_OBJS) $(EXPR_OBJS) \
 	$(OBJS) $(DRIVERS) $(PLUGINS) $(WIDGETS) $(ACTIONS)
-	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBS) $^ -o $@;
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $^ -o $@;
 
 .PHONY: clean
 clean:
-	@rm -rf objs
-	@rm -f lcd2
+	@rm -rf objs lcd2

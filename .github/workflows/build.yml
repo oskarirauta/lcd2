@@ -13,17 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: update gcc
-      run: |
-        sudo apt install gcc-13 g++-13
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130 --slave /usr/bin/g++ g++ /usr/bin/g++-13 --slave /usr/bin/gcov gcov /usr/bin/gcov-13
-        sudo update-alternatives --set gcc /usr/bin/gcc-13
-    - name: install libgd
-      run: |
-        sudo apt install libgd-dev
-    - name: install libusb
-      run: |
-        sudo apt install libusb-0.1-4 libusb-dev
     - name: submodules
       run: git submodule update --init --recursive --remote
     - name: make
