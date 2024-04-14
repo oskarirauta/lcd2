@@ -1,27 +1,9 @@
 [submodule "common"]
 	path = common
 	url = https://github.com/oskarirauta/common_cpp.git
-[submodule "cpu"]
-	path = cpu
-	url = https://github.com/oskarirauta/cpu_cpp.git
 [submodule "expr"]
 	path = expr
 	url = https://github.com/oskarirauta/expr_cpp.git
-[submodule "logger"]
-	path = logger
-	url = https://github.com/oskarirauta/logger_cpp.git
-[submodule "mem"]
-	path = mem
-	url = https://github.com/oskarirauta/mem_cpp.git
-[submodule "netinfo"]
-	path = netinfo
-	url = https://github.com/oskarirauta/netinfo_cpp.git
-[submodule "process"]
-	path = process
-	url = https://github.com/oskarirauta/process_cpp.git
-[submodule "signal"]
-	path = signal
-	url = https://github.com/oskarirauta/signal_cpp.git
 [submodule "throws"]
 	path = throws
 	url = https://github.com/oskarirauta/throws_cpp.git
