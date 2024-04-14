@@ -10,3 +10,21 @@
 [submodule "uptime"]
 	path = uptime
 	url = https://github.com/oskarirauta/uptime_cpp.git
+[submodule "cpu"]
+	path = cpu
+	url = https://github.com/oskarirauta/cpu_cpp.git
+[submodule "logger"]
+	path = logger
+	url = https://github.com/oskarirauta/logger_cpp.git
+[submodule "mem"]
+	path = mem
+	url = https://github.com/oskarirauta/mem_cpp.git
+[submodule "netinfo"]
+	path = netinfo
+	url = https://github.com/oskarirauta/netinfo_cpp.git
+[submodule "process"]
+	path = process
+	url = https://github.com/oskarirauta/process_cpp.git
+[submodule "signal"]
+	path = signal
+	url = https://github.com/oskarirauta/signal_cpp.git
