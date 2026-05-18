@@ -4,14 +4,16 @@ all: world
 
 CXX?=g++
 CXXFLAGS?=--std=c++23 -Os -Wall -fPIC -g
-LDFLAGS?=-L/lib -L/usr/lib -lgd -lusb -ldrm
+LDFLAGS?=-L/lib -L/usr/lib
 DRM_INCLUDES?=-I/usr/include/libdrm
 
 INCLUDES+= \
 	-I./include \
-	-I/usr/include/libdrm \
 	-I./rva/include \
-	-I./tsl/include
+	-I./tsl/include \
+	$(DRM_INCLUDES)
+
+LIBS:=-lgd -lusb -ldrm
 
 include cpu/Makefile.inc
 include mem/Makefile.inc
@@ -83,7 +85,7 @@ lcd2: $(COMMON_OBJS) $(LOGGER_OBJS) $(THROWS_OBJS) $(SIGNAL_OBJS) \
 	$(NETINFO_OBJS) $(CPU_OBJS) $(MEM_OBJS) $(PROCESS_OBJS) \
 	$(UPTIME_OBJS) $(EXPR_OBJS) $(JSON_OBJS) $(USAGE_OBJS) \
 	$(OBJS) $(DRIVERS) $(PLUGINS) $(WIDGETS) $(ACTIONS)
-	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS);
+	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS) $(LIBS);
 
 .PHONY: clean
 clean:
