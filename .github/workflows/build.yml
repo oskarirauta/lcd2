@@ -18,7 +18,7 @@ jobs:
     - name: install libdrm
       run: sudo apt -y install libdrm-dev
     - name: install libusb
-      run: sudo apt -y install libusb libusb-1.0-0 libusb-dev libusb-1.0-0-dev
+      run: sudo apt -y install libusb-dev libusb-1.0-0-dev
     - name: submodules
       run: git submodule update --init --recursive --remote
     - name: make
