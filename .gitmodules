@@ -28,3 +28,6 @@
 [submodule "expr"]
 	path = expr
 	url = https://github.com/oskarirauta/expr_cpp.git
+[submodule "usage"]
+	path = usage
+	url = https://github.com/oskarirauta/usage_cpp.git
