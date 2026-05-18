@@ -15,6 +15,8 @@ The application renders information widgets onto framebuffer displays using DRM/
 - **Multi-page layout** — define multiple pages, switch between them with actions
 - **Configurable timers** — each widget refreshes independently at its own interval
 
+![lcd2 running ax206 with DRM driver](./images/lcd2.png)
+
 ## Quick Start
 
 ```sh
