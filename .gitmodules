@@ -31,3 +31,6 @@
 [submodule "usage"]
 	path = usage
 	url = https://github.com/oskarirauta/usage_cpp.git
+[submodule "json"]
+	path = json
+	url = https://github.com/oskarirauta/json_cpp.git
