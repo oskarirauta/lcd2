@@ -13,6 +13,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: install libgd
+      run: sudo apt -y install libgd-dev
+    - name: install libdrm
+      run: sudo apt -y install libdrm-dev
+    - name: install libusb
+      run: sudo apt -y install libusb libusb-1.0 libusb-dev libusb-1.0-0-dev
     - name: submodules
       run: git submodule update --init --recursive --remote
     - name: make
