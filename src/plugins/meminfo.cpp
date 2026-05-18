@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <algorithm>
 
 #include "logger.hpp"
 #include "throws.hpp"
@@ -29,7 +30,9 @@ expr::VARIABLE plugin::MEMINFO::fn_meminfo_ram_total(const expr::FUNCTION_ARGS& 
 	}
 
 	meminfo -> update();
-	return meminfo -> ram.total[t];
+	double v = meminfo -> ram.total[t];
+	if ( t == mem_t::percent ) v = std::clamp(v, 0.0, 100.0);
+	return v;
 }
 
 expr::VARIABLE plugin::MEMINFO::fn_meminfo_ram_used(const expr::FUNCTION_ARGS& args) {
@@ -53,7 +56,9 @@ expr::VARIABLE plugin::MEMINFO::fn_meminfo_ram_used(const expr::FUNCTION_ARGS& a
 	}
 
 	meminfo -> update();
-	return meminfo -> ram.used[t];
+	double v = meminfo -> ram.used[t];
+	if ( t == mem_t::percent ) v = std::clamp(v, 0.0, 100.0);
+	return v;
 }
 
 expr::VARIABLE plugin::MEMINFO::fn_meminfo_ram_free(const expr::FUNCTION_ARGS& args) {
@@ -77,7 +82,9 @@ expr::VARIABLE plugin::MEMINFO::fn_meminfo_ram_free(const expr::FUNCTION_ARGS& a
 	}
 
 	meminfo -> update();
-	return meminfo -> ram.free[t];
+	double v = meminfo -> ram.free[t];
+	if ( t == mem_t::percent ) v = std::clamp(v, 0.0, 100.0);
+	return v;
 }
 
 expr::VARIABLE plugin::MEMINFO::fn_meminfo_swap_total(const expr::FUNCTION_ARGS& args) {
@@ -101,7 +108,9 @@ expr::VARIABLE plugin::MEMINFO::fn_meminfo_swap_total(const expr::FUNCTION_ARGS&
 	}
 
 	meminfo -> update();
-	return meminfo -> swap.total[t];
+	double v = meminfo -> swap.total[t];
+	if ( t == mem_t::percent ) v = std::clamp(v, 0.0, 100.0);
+	return v;
 }
 
 expr::VARIABLE plugin::MEMINFO::fn_meminfo_swap_used(const expr::FUNCTION_ARGS& args) {
@@ -125,7 +134,9 @@ expr::VARIABLE plugin::MEMINFO::fn_meminfo_swap_used(const expr::FUNCTION_ARGS& 
 	}
 
 	meminfo -> update();
-	return meminfo -> swap.used[t];
+	double v = meminfo -> swap.used[t];
+	if ( t == mem_t::percent ) v = std::clamp(v, 0.0, 100.0);
+	return v;
 }
 
 expr::VARIABLE plugin::MEMINFO::fn_meminfo_swap_free(const expr::FUNCTION_ARGS& args) {
@@ -149,7 +160,9 @@ expr::VARIABLE plugin::MEMINFO::fn_meminfo_swap_free(const expr::FUNCTION_ARGS& 
 	}
 
 	meminfo -> update();
-	return meminfo -> swap.free[t];
+	double v = meminfo -> swap.free[t];
+	if ( t == mem_t::percent ) v = std::clamp(v, 0.0, 100.0);
+	return v;
 }
 
 plugin::MEMINFO::MEMINFO(CONFIG::MAP *cfg) {

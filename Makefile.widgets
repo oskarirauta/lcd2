@@ -3,7 +3,10 @@ WIDGETS:= \
 	objs/widget_image.o \
 	objs/widget_ttf.o \
 	objs/widget_linechart.o \
-	objs/widget_bar.o
+	objs/widget_curvechart.o \
+	objs/widget_bar.o \
+	objs/widget_gauge.o \
+	objs/widget_clock.o
 
 objs/widget.o: src/widget.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
@@ -17,5 +20,14 @@ objs/widget_ttf.o: src/widgets/ttf.cpp
 objs/widget_linechart.o: src/widgets/linechart.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
 
+objs/widget_curvechart.o: src/widgets/curvechart.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
 objs/widget_bar.o: src/widgets/bar.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/widget_gauge.o: src/widgets/gauge.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/widget_clock.o: src/widgets/clock.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;

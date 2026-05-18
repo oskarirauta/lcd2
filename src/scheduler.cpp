@@ -1,7 +1,5 @@
-#include <thread>
 #include <chrono>
-#include <atomic>
-#include <poll.h>
+#include <stdexcept>
 
 #include "logger.hpp"
 #include "throws.hpp"
@@ -13,514 +11,293 @@
 #include "layout.hpp"
 #include "scheduler.hpp"
 
-static std::atomic_bool lock_plugins = ATOMIC_VAR_INIT(false);
-static std::atomic_bool needs_plugins_update = ATOMIC_VAR_INIT(false);
+// Data thread update interval: frequent enough for any plugin's own interval check.
+static constexpr auto DATA_INTERVAL   = std::chrono::milliseconds(100);
 
-static std::atomic_bool lock_global_timers = ATOMIC_VAR_INIT(false);
-static std::atomic_bool needs_global_timers_update = ATOMIC_VAR_INIT(false);
+// Render thread target frame time (~30 fps).
+static constexpr auto RENDER_INTERVAL = std::chrono::milliseconds(33);
 
-static std::atomic_bool lock_timers = ATOMIC_VAR_INIT(false);
-static std::atomic_bool needs_timers_update = ATOMIC_VAR_INIT(false);
+// How often the main wait loop polls for the stop flag.
+static constexpr auto MAIN_POLL       = std::chrono::milliseconds(100);
 
-static std::atomic_bool lock_widgets = ATOMIC_VAR_INIT(false);
-static std::atomic_bool needs_widgets_update = ATOMIC_VAR_INIT(false);
-static std::atomic_bool widgets_updated = ATOMIC_VAR_INIT(false);
-
-static std::atomic_bool lock_layout = ATOMIC_VAR_INIT(false);
-static std::atomic_bool needs_layout_update = ATOMIC_VAR_INIT(false);
-static std::atomic_bool layout_updated = ATOMIC_VAR_INIT(false);
-
-static std::atomic_bool lock_display = ATOMIC_VAR_INIT(false);
-static std::atomic_bool needs_display_update = ATOMIC_VAR_INIT(false);
-
-static std::atomic_bool is_threaded = ATOMIC_VAR_INIT(true);
-static std::atomic_bool needs_exit = ATOMIC_VAR_INIT(false);
-
-SCHEDULER::SCHEDULER(DISPLAY *display, bool threaded) {
-
-	this -> display = display;
-	is_threaded.store(threaded, std::memory_order_relaxed);
-}
+SCHEDULER::SCHEDULER(DISPLAY* display, bool threaded)
+    : _display(display), _is_threaded(threaded) {}
 
 SCHEDULER::~SCHEDULER() {
+    _display = nullptr;
+}
 
-	this -> display = nullptr;
+bool SCHEDULER::threading() const {
+    return _is_threaded;
 }
 
 void SCHEDULER::exit_loop(bool value) {
-
-	needs_exit.store(value, std::memory_order_relaxed);
+    _stop.store(value, std::memory_order_relaxed);
 }
 
-bool SCHEDULER::exit_loop() {
-
-	return needs_exit.load(std::memory_order_relaxed);
+bool SCHEDULER::exit_loop() const {
+    return _stop.load(std::memory_order_relaxed);
 }
 
-static int sleep_ms(long int ms) {
-
-	if ( ms < 1 )
-		return 1;
-	else if ( ms > 2500 ) {
-		logger::debug["scheduler"] << "attempt to sleep more than 2500ms, " << ms << " to be precise.. Ignoring sleep request" << std::endl;
-		return 1;
-	}
-
-	return ::poll(NULL, 0, ms);
-}
-
-void SCHEDULER::update_plugins(std::stop_token token, SCHEDULER& sched) {
-
-	while ( !token.stop_requested() && !needs_exit.load(std::memory_order_relaxed)) {
-
-		if ( is_threaded.load(std::memory_order_relaxed) && !needs_plugins_update.load(std::memory_order_relaxed) && !token.stop_requested()) {
-
-			sleep_ms(250);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(250));
-			continue;
-		} else if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested()) break;
-
-		lock_plugins.store(true, std::memory_order_relaxed);
-
-		for ( auto it = sched.display -> plugins -> begin(); it != sched.display -> plugins -> end() && !token.stop_requested(); it++ )
-			it -> second.get() -> update();
-
-		needs_plugins_update.store(false, std::memory_order_relaxed);
-		lock_plugins.store(false, std::memory_order_relaxed);
-
-		if ( !is_threaded.load(std::memory_order_relaxed) )
-			break;
-		else if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested())
-			sleep_ms(140);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(140));
-	}
-}
-
-void SCHEDULER::update_timers(std::stop_token token, SCHEDULER& sched) {
-
-	while ( !token.stop_requested() && !needs_exit.load(std::memory_order_relaxed)) {
-
-		if ( is_threaded.load(std::memory_order_relaxed) && !needs_timers_update.load(std::memory_order_relaxed) && !token.stop_requested()) {
-
-			sleep_ms(120);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(120));
-			continue;
-		} else if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested()) break;
-
-		lock_timers.store(true, std::memory_order_relaxed);
-
-		while ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested() && lock_widgets.load(std::memory_order_relaxed));
-
-		for ( const auto& [key, _] : sched.display -> timers ) {
-
-			if ( sched.display -> timers[key].is_global(sched.display -> layout))
-				sched.display -> timers[key].update();
-			else if ( sched.display -> timers[key].on_page(sched.display -> layout, sched.current_page))
-				sched.display -> timers[key].update();
-
-			if ( !is_threaded.load(std::memory_order_relaxed) )
-				continue;
-			else if ( token.stop_requested())
-				break;
-		}
-
-		needs_timers_update.store(false, std::memory_order_relaxed);
-		lock_timers.store(false, std::memory_order_relaxed);
-
-		if ( !is_threaded.load(std::memory_order_relaxed) )
-			break;
-		else if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested())
-			sleep_ms(80);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(80));
-	}
-}
-
-void SCHEDULER::update_widgets(std::stop_token token, SCHEDULER& sched) {
-
-	int page_no;
-
-	while ( !token.stop_requested() && !needs_exit.load(std::memory_order_relaxed)) {
-
-		if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested()) {
-
-			if ( !needs_widgets_update.load(std::memory_order_relaxed) ||
-				widgets_updated.load(std::memory_order_relaxed)) {
-
-				sleep_ms(30);
-				//std::this_thread::sleep_for(std::chrono::milliseconds(30));
-				continue;
-			}
-		} else if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested()) break;
-
-		lock_widgets.store(true, std::memory_order_relaxed);
-
-		page_no = sched.current_page;
-
-		while ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested() && widgets_updated.load(std::memory_order_relaxed) &&
-			( lock_layout.load(std::memory_order_relaxed) || lock_display.load(std::memory_order_relaxed) ||
-				lock_timers.load(std::memory_order_relaxed)));
-
-		for ( auto& [k, layer] : sched.display -> layout -> pages[page_no].layers ) {
-
-			if ( is_threaded.load(std::memory_order_relaxed) && ( token.stop_requested() || needs_exit.load(std::memory_order_relaxed)))
-				break;
-
-			for ( auto& widget : layer.widgets ) {
-
-				if ( is_threaded.load(std::memory_order_relaxed) && ( token.stop_requested() || needs_exit.load(std::memory_order_relaxed)))
-					break;
-				else if ( widget.update())
-					widgets_updated.store(true, std::memory_order_relaxed);
-			}
-		}
-
-		needs_widgets_update.store(false, std::memory_order_relaxed);
-		lock_widgets.store(false, std::memory_order_relaxed);
-
-		if ( !is_threaded.load(std::memory_order_relaxed) )
-			break;
-		else if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested())
-			sleep_ms(10);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-}
-
-void SCHEDULER::update_layout(std::stop_token token, SCHEDULER& sched) {
-
-	while ( !token.stop_requested() && !needs_exit.load(std::memory_order_relaxed)) {
-
-		if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested()) {
-
-			if ( !needs_layout_update.load(std::memory_order_relaxed) ||
-				!widgets_updated.load(std::memory_order_relaxed) ||
-				layout_updated.load(std::memory_order_relaxed)) {
-
-				sleep_ms(30);
-				//std::this_thread::sleep_for(std::chrono::milliseconds(30));
-				continue;
-			}
-		} else if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested()) break;
-
-		lock_layout.store(true, std::memory_order_relaxed);
-
-		while ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested() && layout_updated.load(std::memory_order_relaxed) &&
-			( lock_widgets.load(std::memory_order_relaxed) || lock_display.load(std::memory_order_relaxed)));
-
-		if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested())
-			break;
-
-		sched.display -> layout -> render();
-		layout_updated.store(true, std::memory_order_relaxed);
-
-		needs_layout_update.store(false, std::memory_order_relaxed);
-		lock_layout.store(false, std::memory_order_relaxed);
-
-		if ( !is_threaded.load(std::memory_order_relaxed) )
-			break;
-		else if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested())
-			sleep_ms(10);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-}
-
-void SCHEDULER::update_display(std::stop_token token, SCHEDULER& sched) {
-
-	while ( !token.stop_requested() && !needs_exit.load(std::memory_order_relaxed)) {
-
-		if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested()) {
-
-			if ( !needs_display_update.load(std::memory_order_relaxed) ||
-				!widgets_updated.load(std::memory_order_relaxed) ||
-				!layout_updated.load(std::memory_order_relaxed)) {
-
-				sleep_ms(30);
-				//std::this_thread::sleep_for(std::chrono::milliseconds(30));
-				continue;
-			}
-
-		} else if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested()) break;
-
-		lock_display.store(true, std::memory_order_relaxed);
-
-		while ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested() &&
-			( lock_widgets.load(std::memory_order_relaxed) || lock_layout.load(std::memory_order_relaxed)));
-
-		if ( is_threaded.load(std::memory_order_relaxed) && token.stop_requested())
-			break;
-
-		sched.display -> refresh();
-		layout_updated.store(false, std::memory_order_relaxed);
-		widgets_updated.store(false, std::memory_order_relaxed);
-
-		needs_display_update.store(false, std::memory_order_relaxed);
-		lock_display.store(false, std::memory_order_relaxed);
-
-		if ( !is_threaded.load(std::memory_order_relaxed) )
-			break;
-		else if ( is_threaded.load(std::memory_order_relaxed) && !token.stop_requested())
-			sleep_ms(10);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(10));
-	}
-}
+// ── Initialisation (called once in main thread before threads start) ─────────
 
 bool SCHEDULER::run_once() {
 
-	if ( !this -> _run_once )
-		return false;
+    _display->clean_up();
 
-	this -> _run_once = false;
+    if (_display->canvas.empty())
+        _display->init_canvas();
 
-	this -> display -> clean_up();
-
-	if ( this -> display -> canvas.empty())
-		this -> display -> init_canvas();
-
-	this -> display -> clear();
-
-	return true;
+    _display->clear();
+    return true;
 }
 
-void SCHEDULER::run_unthreaded(bool once) {
+// ── Pipeline helpers ──────────────────────────────────────────────────────────
 
-	int cycle = 0;
-	bool was_threaded = is_threaded.load(std::memory_order_relaxed);
-	std::stop_token token;
-	[[ maybe_unused ]] bool needs_delay;
+void SCHEDULER::update_plugins() {
 
-	if ( once )
-		is_threaded.store(false, std::memory_order_relaxed);
-
-	sleep_ms(100);
-	//std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-	bool widgets_updated = once ? true : false;
-
-	while ( !needs_exit.load(std::memory_order_relaxed)) {
-
-		needs_delay = true;
-
-		auto start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-		this -> current_page = this -> display -> page_number();
-
-		// update plugins
-		for ( auto it = this -> display -> plugins -> begin(); it != this -> display -> plugins -> end() && !needs_exit.load(std::memory_order_relaxed); it++ )
-			it -> second.get() -> update();
-		auto plugins_end = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		// update timers
-		for ( const auto& [key, _] : this -> display -> timers ) {
-
-			if ( needs_exit.load(std::memory_order_relaxed))
-				break;
-			else if ( this -> display -> timers[key].is_global(this -> display -> layout) ||
-				this -> display -> timers[key].on_page(this -> display -> layout, this -> current_page))
-				this -> display -> timers[key].update();
-		}
-		auto timers_end = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		// update widgets
-		widgets_updated = false;
-		for ( auto& [k, layer] : this -> display -> layout -> pages[this -> current_page].layers ) {
-
-			if ( needs_exit.load(std::memory_order_relaxed))
-				break;
-
-                        for ( auto& widget : layer.widgets ) {
-
-                                if ( needs_exit.load(std::memory_order_relaxed)) break;
-				else {
-					auto *w = widget.get_ptr();
-					if ( w -> update()) widgets_updated = true;
-					else if ( w -> reloads()) sleep_ms(8);
-					//if ( widget.update()) widgets_updated = true;
-				}
-			}
-		}
-		auto widgets_end = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		// update layout
-		if ( widgets_updated && !needs_exit.load(std::memory_order_relaxed))
-			this -> display -> layout -> render();
-		auto layout_end = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		// update display
-		if ( widgets_updated && !needs_exit.load(std::memory_order_relaxed)) {
-
-			this -> display -> refresh();
-			widgets_updated = false;
-		}
-		auto display_end = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		if ( once ) {
-			is_threaded.store(was_threaded, std::memory_order_relaxed);
-			break;
-		}
-
-		//if ( needs_delay) // add small delay
-		//	sleep_ms(10);
-		//	std::this_thread::sleep_for(std::chrono::milliseconds(10));
-
-		if ( needs_exit.load(std::memory_order_relaxed))
-			break;
-
-		if (( display_end - start ).count() < 550 )
-			sleep_ms( 600 - (display_end - start).count());
-		else sleep_ms(250);
-		//if ( needs_delay )
-		//	sleep_ms(10);
-
-		//sleep_ms(500);
-
-		auto sleep_end = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		if ( !logger::silence ) /*
-			std::cout << "\ncycle #" << cycle++ << ": " <<
-				(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - start).count() <<
-				"ms" << std::endl;
-			*/
-
-			std::cout << "\ncycle #" << cycle++ << ": " << ( sleep_end - start ).count() << "ms " <<
-						"plugins: " << ( plugins_end - start ).count() << "ms " <<
-						"timers: " << ( timers_end - plugins_end ).count() << "ms " <<
-						"widgets: " << ( widgets_end - timers_end ).count() << "ms " <<
-						"layout: " << ( layout_end - widgets_end ).count() << "ms " <<
-						"display: " << ( display_end - widgets_end ).count() << "ms " <<
-						"all: " << ( display_end - start ).count() << "ms " <<
-						"sleep: " << ( sleep_end - display_end ).count() << "ms" << std::endl;
-
-	}
-
+    for (auto it = _display->plugins->begin(); it != _display->plugins->end(); ++it) {
+        auto tp0 = std::chrono::steady_clock::now();
+        it->second->update();
+        auto tp_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - tp0).count();
+        if (tp_ms > 50)
+            logger::verbose["scheduler"] << "plugin '" << it->first << "' update took "
+                << tp_ms << "ms" << std::endl;
+    }
 }
+
+void SCHEDULER::update_timers() {
+
+    int page = _current_page.load(std::memory_order_relaxed);
+
+    for (auto& [key, _] : _display->timers) {
+        TIMER& t = _display->timers[key];
+        if (t.is_global(_display->layout) || t.on_page(_display->layout, page))
+            t.update();
+    }
+}
+
+bool SCHEDULER::update_widgets() {
+
+    int page = _current_page.load(std::memory_order_relaxed);
+    bool any_updated = false;
+
+    if (!_display->layout->pages.contains(page))
+        return false;
+
+    for (auto& [k, layer] : _display->layout->pages[page].layers) {
+        if (_stop.load(std::memory_order_relaxed)) break;
+        for (auto& wlink : layer.widgets) {
+            if (_stop.load(std::memory_order_relaxed)) break;
+            auto tw0 = std::chrono::steady_clock::now();
+            bool updated = wlink.update();
+            if (updated) any_updated = true;
+            auto tw_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - tw0).count();
+            if (tw_ms > 50)
+                logger::verbose["scheduler"] << "widget '" << wlink.name << "' update took "
+                    << tw_ms << "ms" << std::endl;
+        }
+    }
+
+    return any_updated;
+}
+
+// ── Data thread: plugins + timers ─────────────────────────────────────────────
+
+void SCHEDULER::data_loop(std::stop_token token) {
+
+    while (!token.stop_requested() && !_stop.load(std::memory_order_relaxed)) {
+
+        auto next = std::chrono::steady_clock::now() + DATA_INTERVAL;
+
+        {
+            auto t0 = std::chrono::steady_clock::now();
+            std::lock_guard<std::mutex> lock(_data_mutex);
+            update_plugins();
+            update_timers();
+            auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - t0).count();
+            if (elapsed_ms > 50)
+                logger::verbose["scheduler"] << "data: plugins+timers=" << elapsed_ms << "ms" << std::endl;
+        }
+
+        std::this_thread::sleep_until(next);
+    }
+}
+
+// ── Render thread: widgets → layout → display ─────────────────────────────────
+
+void SCHEDULER::render_loop(std::stop_token token) {
+
+    long _frame = 0;
+
+    while (!token.stop_requested() && !_stop.load(std::memory_order_relaxed)) {
+
+        auto frame_start = std::chrono::steady_clock::now();
+
+        if (++_frame % 300 == 0)
+            logger::debug["scheduler"] << "render alive, frame=" << _frame << std::endl;
+
+        // Snapshot current page; exceptions mean display is shutting down
+        try {
+            _current_page.store(_display->page_number(), std::memory_order_relaxed);
+        } catch (...) {
+            std::this_thread::sleep_for(RENDER_INTERVAL);
+            continue;
+        }
+
+        // Widget update evaluates expressions → reads CONFIG::variables → needs lock
+        bool any_updated = false;
+        {
+            auto t0 = std::chrono::steady_clock::now();
+            std::lock_guard<std::mutex> lock(_data_mutex);
+            auto t1 = std::chrono::steady_clock::now();
+            any_updated = update_widgets();
+            auto t2 = std::chrono::steady_clock::now();
+            auto lock_wait = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+            auto widget_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
+            if (lock_wait > 50 || widget_ms > 50)
+                logger::verbose["scheduler"] << "render: lock_wait=" << lock_wait
+                    << "ms update_widgets=" << widget_ms << "ms" << std::endl;
+        }
+
+        // Layout render and display blit don't touch CONFIG::variables → no lock needed
+        if (any_updated && !_stop.load(std::memory_order_relaxed)) {
+            auto t3 = std::chrono::steady_clock::now();
+            _display->layout->render();
+            auto t4 = std::chrono::steady_clock::now();
+            _display->refresh();
+            auto t5 = std::chrono::steady_clock::now();
+            auto render_ms  = std::chrono::duration_cast<std::chrono::milliseconds>(t4 - t3).count();
+            auto refresh_ms = std::chrono::duration_cast<std::chrono::milliseconds>(t5 - t4).count();
+            if (render_ms > 50 || refresh_ms > 50)
+                logger::verbose["scheduler"] << "render: layout=" << render_ms
+                    << "ms refresh=" << refresh_ms << "ms" << std::endl;
+        }
+
+        auto elapsed  = std::chrono::steady_clock::now() - frame_start;
+        auto leftover = RENDER_INTERVAL - elapsed;
+        if (leftover > std::chrono::milliseconds(0))
+            std::this_thread::sleep_for(leftover);
+    }
+}
+
+// ── Threaded main loop ─────────────────────────────────────────────────────────
 
 void SCHEDULER::run_threaded() {
 
-	int cycle = 0;
+    _data_thread   = std::jthread([this](std::stop_token t){ data_loop(t); });
+    _render_thread = std::jthread([this](std::stop_token t){ render_loop(t); });
 
-        std::jthread thread_plugins(SCHEDULER::update_plugins, std::ref(*this));
-        std::jthread thread_timers(SCHEDULER::update_timers, std::ref(*this));
-        std::jthread thread_widgets(SCHEDULER::update_widgets, std::ref(*this));
-        std::jthread thread_layout(SCHEDULER::update_layout, std::ref(*this));
-        std::jthread thread_display(SCHEDULER::update_display, std::ref(*this));
+    logger::verbose["scheduler"] << "threads started" << std::endl;
 
-	// Small delay to let things settle to avoid segfaults from concurrent actions
-	sleep_ms(400);
-	//std::this_thread::sleep_for(std::chrono::milliseconds(400));
+    while (!_stop.load(std::memory_order_relaxed))
+        std::this_thread::sleep_for(MAIN_POLL);
 
-	while ( !needs_exit.load(std::memory_order_relaxed)) {
-
-		auto start = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-
-		this -> current_page = this -> display -> page_number();
-
-		// update plugins
-		if ( !lock_plugins.load(std::memory_order_relaxed) && !needs_plugins_update.load(std::memory_order_relaxed) &&
-			!needs_exit.load(std::memory_order_relaxed))
-			needs_plugins_update.store(true, std::memory_order_relaxed);
-
-		// update timers
-		if ( !lock_timers.load(std::memory_order_relaxed) && !needs_timers_update.load(std::memory_order_relaxed) &&
-			!needs_exit.load(std::memory_order_relaxed))
-			needs_timers_update.store(true, std::memory_order_relaxed);
-
-		// update widgets
-		if ( !lock_widgets.load(std::memory_order_relaxed) && !needs_widgets_update.load(std::memory_order_relaxed) &&
-			!widgets_updated.load(std::memory_order_relaxed) && !needs_exit.load(std::memory_order_relaxed))
-			needs_widgets_update.store(true, std::memory_order_relaxed);
-
-		// update layout
-		if ( !lock_layout.load(std::memory_order_relaxed) && !needs_layout_update.load(std::memory_order_relaxed) &&
-			widgets_updated.load(std::memory_order_relaxed) && !needs_exit.load(std::memory_order_relaxed))
-			needs_layout_update.store(true, std::memory_order_relaxed);
-
-		// update display
-		if ( !lock_display.load(std::memory_order_relaxed) && !needs_display_update.load(std::memory_order_relaxed) &&
-			widgets_updated.load(std::memory_order_relaxed) && layout_updated.load(std::memory_order_relaxed) &&
-			!needs_exit.load(std::memory_order_relaxed))
-			needs_display_update.store(true, std::memory_order_relaxed);
-
-		// add small delay
-		if ( needs_exit.load(std::memory_order_relaxed))
-			break;
-
-		auto now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-		if ( start + std::chrono::milliseconds(20) > now ) {
-			long int c = 40 - ( now - start ).count();
-			if ( c < 40 && c > 0 )	sleep_ms(c);
-			//std::this_thread::sleep_for(std::chrono::milliseconds(40 - (now - start).count()));
-		}
-
-		if ( !logger::silence )
-			std::cout << "\ncycle #" << cycle++ << ": " <<
-				(std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) - start).count() <<
-				"ms" << std::endl;
-	}
+    _data_thread.request_stop();
+    _render_thread.request_stop();
+    _data_thread.join();
+    _render_thread.join();
 }
 
-bool SCHEDULER::threading() {
+// ── Unthreaded main loop ───────────────────────────────────────────────────────
 
-	return is_threaded.load(std::memory_order_relaxed);
+void SCHEDULER::run_unthreaded() {
+
+    int cycle = 0;
+
+    while (!_stop.load(std::memory_order_relaxed)) {
+
+        auto start = std::chrono::steady_clock::now();
+
+        try {
+            _current_page.store(_display->page_number(), std::memory_order_relaxed);
+        } catch (...) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
+        update_plugins();
+        update_timers();
+
+        bool any_updated = update_widgets();
+
+        if (any_updated && !_stop.load(std::memory_order_relaxed)) {
+            auto tr0 = std::chrono::steady_clock::now();
+            _display->layout->render();
+            auto tr1 = std::chrono::steady_clock::now();
+            _display->refresh();
+            auto tr2 = std::chrono::steady_clock::now();
+            auto layout_ms  = std::chrono::duration_cast<std::chrono::milliseconds>(tr1 - tr0).count();
+            auto refresh_ms = std::chrono::duration_cast<std::chrono::milliseconds>(tr2 - tr1).count();
+            if (layout_ms > 50 || refresh_ms > 50)
+                logger::verbose["scheduler"] << "unthreaded: layout=" << layout_ms
+                    << "ms refresh=" << refresh_ms << "ms" << std::endl;
+        }
+
+        auto elapsed = std::chrono::steady_clock::now() - start;
+
+        logger::verbose["scheduler"] << "cycle #" << cycle++
+            << " " << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count()
+            << "ms (updated=" << any_updated << ")" << std::endl;
+
+        // Target ~600 ms cycle; sleep the remainder (minimum 50 ms)
+        auto leftover = std::chrono::milliseconds(600) - elapsed;
+        if (leftover > std::chrono::milliseconds(50))
+            std::this_thread::sleep_for(leftover);
+        else
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
 }
+
+// ── Entry point ───────────────────────────────────────────────────────────────
 
 void SCHEDULER::run() {
 
-	if ( this -> exit_loop()) {
+    if (_stop.load(std::memory_order_relaxed)) {
+        logger::verbose["scheduler"] << "stop requested before loop started" << std::endl;
+        _display = nullptr;
+        return;
+    }
 
-		logger::vverbose["scheduler"] << "exit in eraly stage called with signal" << std::endl;
-		logger::verbose["scheduler"] << "exiting loop before it started" << std::endl;
-		this -> display = nullptr;
-		return;
-	}
+    // Wait until display and layout are ready (populated by DISPLAY constructor)
+    while ((_display == nullptr || _display->layout == nullptr)
+           && !_stop.load(std::memory_order_relaxed)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
 
-	this -> exit_loop(false);
+    if (_stop.load(std::memory_order_relaxed)) return;
 
-	// TODO: throw if 1 minute has passed..
-	while (( this -> display == nullptr || this -> display -> layout == nullptr ) && !this -> exit_loop());
+    run_once();
 
-	sleep_ms(250);
-	//std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    if (_stop.load(std::memory_order_relaxed)) return;
 
-	if ( !this -> run_once())
-		this -> display -> clear();
+    logger::verbose["scheduler"] << "starting ("
+        << (_is_threaded ? "threaded" : "unthreaded") << ")" << std::endl;
 
-	if ( this -> exit_loop())
-		return;
-	else logger::verbose["scheduler"] << "starting scheduler" << std::endl;
+    _current_page.store(_display->page_number(), std::memory_order_relaxed);
 
-	logger::verbose["scheduler"] << "threading " <<
-		( is_threaded.load(std::memory_order_relaxed) ? "enabled" : "disabled" ) <<
-		std::endl;
+    // Single initial render so the display shows something immediately
+    {
+        update_plugins();
+        update_timers();
+        update_widgets();
+        _display->layout->render();
+        _display->refresh();
+    }
 
-	this -> current_page = this -> display -> page_number();
+    if (_stop.load(std::memory_order_relaxed)) return;
 
-	try {
-		run_unthreaded(true);
+    try {
+        if (_is_threaded)
+            run_threaded();
+        else
+            run_unthreaded();
+    } catch (const std::exception& e) {
+        logger::error["scheduler"] << "loop exited abnormally: " << e.what() << std::endl;
+    }
 
-	} catch ( const std::runtime_error& e ) {
-
-		logger::verbose["scheduler"] << "exiting loop" << std::endl;
-	}
-
-	if ( this -> exit_loop()) {
-
-		logger::verbose << "scheduler stopped" << std::endl;
-		return;
-	}
-
-	logger::vverbose["scheduler"] << "loop begins" << std::endl;
-
-	try {
-
-		if ( is_threaded.load(std::memory_order_relaxed))
-			run_threaded();
-		else
-			run_unthreaded();
-
-		logger::verbose["scheduler"] << "exiting loop" << std::endl;
-
-	} catch (const std::runtime_error& e ) {
-
-		logger::error["scheduler"] << "loop exited abnormally, reason: " << e.what() << std::endl;
-	}
-
-	logger::verbose["scheduler"] << "ending loop" << std::endl;
+    logger::verbose["scheduler"] << "stopped" << std::endl;
 }

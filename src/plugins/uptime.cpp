@@ -74,10 +74,13 @@ expr::VARIABLE plugin::UPTIME::fn_uptime(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uptime does not need any arguments" << std::endl; 
 
 	auto data = uptime -> data();
+	std::string s;
 
-	return ( data.days > 0 ? ( std::to_string(data.days) + "d " ) : "" ) +
-		( data.hours > 0 ? ( std::to_string(data.hours) + "h " ) : "" ) +
-			std::to_string(data.minutes) + "m";
+	if ( data.days > 0 )  s += std::to_string(data.days) + "d ";
+	if ( data.days > 0 || data.hours > 0 ) s += std::to_string(data.hours) + "h ";
+	s += std::to_string(data.minutes) + "m";
+
+	return s;
 }
 
 expr::VARIABLE plugin::UPTIME::fn_uptime_long(const expr::FUNCTION_ARGS& args) {
@@ -89,14 +92,17 @@ expr::VARIABLE plugin::UPTIME::fn_uptime_long(const expr::FUNCTION_ARGS& args) {
 	}
 
 	if ( !args.empty())
-		logger::warning["plugin"] << "plugin uptime does not need any arguments" << std::endl; 
+		logger::warning["plugin"] << "plugin uptime does not need any arguments" << std::endl;
 
 	auto data = uptime -> data();
+	std::string s;
 
-	return std::to_string(data.days) + "d " +
-		std::to_string(data.hours) + "h " +
-		std::to_string(data.minutes) + "m " +
-		std::to_string(data.seconds) + "s";
+	if ( data.days > 0 )  s += std::to_string(data.days) + "d ";
+	if ( data.days > 0 || data.hours > 0 )   s += std::to_string(data.hours) + "h ";
+	if ( data.days > 0 || data.hours > 0 || data.minutes > 0 ) s += std::to_string(data.minutes) + "m ";
+	s += std::to_string(data.seconds) + "s";
+
+	return s;
 }
 
 expr::VARIABLE plugin::UPTIME::fn_uptime_timestamp(const expr::FUNCTION_ARGS& args) {

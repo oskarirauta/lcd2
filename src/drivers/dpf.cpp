@@ -15,6 +15,18 @@ static const int	DPF_BPP = 2;
 static const short	AX206_VID = 0x1908; // AX206 USB Vendor ID
 static const short	AX206_PID = 0x0102; // AX206 USB Product ID
 
+/* Caution
+ *
+ * dpf/ax206 driver is no longer supported, lcd2 has focused into drm/kms driver only
+ * but this driver also does build and work (atleast while writing this), but since
+ * a drm/kms driver for ax206 exists, it is recommended to use that. It works much
+ * better.
+ *
+ * So in that way, dpf/ax206 driver has deprecated, but since I had a lot of work
+ * to create it; I decided to keep it here as a part of history, and it also can
+ * be helpful for someone looking forward on how device like this works.
+ */
+
 // forward declaration
 static expr::VARIABLE fn_brightness(const expr::FUNCTION_ARGS& args);
 

@@ -12,7 +12,7 @@
 
 widget::LINECHART::LINECHART(const std::string& name, CONFIG::MAP *cfg) {
 
-	this -> _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));;
+	this -> _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));
 	this -> _properties.clear();
 
 	if ( name.empty())
@@ -23,8 +23,9 @@ widget::LINECHART::LINECHART(const std::string& name, CONFIG::MAP *cfg) {
 			"is missing configuration" << std::endl;
 
 	std::vector<std::string> allowed_keys = {
-		"value", "min", "max", "fgcolor", "fgcolor2", "bgcolor", "width", "height", "smooth", "scale"
-		"center", "opacity", "inverted", "visible", "use_cycles", "interval", "reload", "class"
+		"value", "min", "max", "fgcolor", "fgcolor2", "bgcolor", "gridlines", "gridcolor",
+		"width", "height", "smooth", "scale",
+		"center", "opacity", "inverted", "visible", "use_cycles", "interval", "reload", "class", "type"
 	};
 
 	for ( auto& [k, v] : *cfg ) {
@@ -44,7 +45,7 @@ widget::LINECHART::LINECHART(const std::string& name, CONFIG::MAP *cfg) {
 
 		if ( !CONFIG::parse_option("linechart widget", key, value, &allowed_keys))
 			continue;
-		else if ( key == "class" ) continue;
+		else if ( key == "class" || key == "type" ) continue;
 
 		this -> _properties[key] = value;
 	}
@@ -66,7 +67,7 @@ widget::LINECHART::LINECHART(const std::string& name, CONFIG::MAP *cfg) {
 
 		logger::error["widget"] << "invalid linechart widget '" << name << "' configuration, maximum value " <<
 			this -> P2I("max", -1) << " not in range 0 - 250" << std::endl;
-		this -> _properties["min"] = (int)100;
+		this -> _properties["max"] = (int)100;
 	}
 
 	if ( this -> P2I("max", -1) < this -> P2I("min", 0)) {
@@ -79,13 +80,13 @@ widget::LINECHART::LINECHART(const std::string& name, CONFIG::MAP *cfg) {
 	if ( !this -> _properties.contains("fgcolor") || this -> _properties["fgcolor"].empty() || !RGBA::check_color(this -> P2S("fgcolor"))) {
 
 		logger::error["widget"] << "invalid linechart widget '" << name << "' configuration, fgcolor missing or color is invalid" << std::endl;
-		this -> _properties["fcolor"] = "'ffffff'";
+		this -> _properties["fgcolor"] = "'ffffff'";
 	}
 
 	if ( !this -> _properties.contains("fgcolor2") || this -> _properties["fgcolor2"].empty() || !RGBA::check_color(this -> P2S("fgcolor2"))) {
 
 		logger::error["widget"] << "invalid linechart widget '" << name << "' configuration, fgcolor2 missing or color is invalid" << std::endl;
-		this -> _properties["fcolor2"] = "'aaaaaa'";
+		this -> _properties["fgcolor2"] = "'aaaaaa'";
 	}
 
 	if ( !this -> _properties.contains("bgcolor") || this -> _properties["bgcolor"].empty() || !RGBA::check_color(this -> P2S("bgcolor"))) {
@@ -206,9 +207,11 @@ bool widget::LINECHART::render() {
 	double p_scale = this -> P2N("scale", 1.0 ) < 0 ? 1.0 : this -> P2N("scale", 1.0);
 	double p_opacity = this -> P2N("opacity", 1.0);
 	bool p_inverted = this -> P2B("inverted", false);
-	std::string p_fgcolor = this -> P2S("fgcolor", "ffffff");
-	std::string p_fgcolor2 = this -> P2S("fgcolor2", "aaaaaa");
-	std::string p_bgcolor = this -> P2S("bgcolor", "444444");
+	std::string p_fgcolor  = this -> P2S("fgcolor",   "ffffff");
+	std::string p_fgcolor2 = this -> P2S("fgcolor2",  "aaaaaa");
+	std::string p_bgcolor  = this -> P2S("bgcolor",   "444444");
+	int p_gridlines = std::max(0, this -> P2I("gridlines", 0));
+	std::string p_gridcolor = this -> P2S("gridcolor", "");
 	int g_fgcolor, g_fgcolor2, g_bgcolor;
 
 	if ( p_width < 10 ) {
@@ -240,7 +243,8 @@ bool widget::LINECHART::render() {
 	RGBA fg_color2(p_fgcolor2);
 	RGBA bg_color(p_bgcolor);
 
-	// never shrink it; it might be grown back on other page..
+	// The ring buffer grows to accommodate the widest width seen across all
+	// pages, but never shrinks — a widget on another page may use a larger width.
 
 	if ( this -> _longest_width < (size_t)p_width) {
 
@@ -281,9 +285,32 @@ bool widget::LINECHART::render() {
 	g_bgcolor = gdImageColorAllocateAlpha(gdImage, bg_color.R, bg_color.G, bg_color.B, bg_color.GD_alpha());
 
 	gdImageFill(gdImage, 0, 0, g_bgcolor);
+
+	// Horizontal gridlines at equal value intervals, drawn before chart data
+	if ( p_gridlines > 1 ) {
+
+		int g_grid;
+		if ( !p_gridcolor.empty() && RGBA::check_color(p_gridcolor)) {
+			RGBA gc(p_gridcolor);
+			g_grid = gdImageColorAllocateAlpha(gdImage, gc.R, gc.G, gc.B, gc.GD_alpha());
+		} else {
+			// Default: dim blend of fgcolor and bgcolor
+			RGBA fg(p_fgcolor), bg(p_bgcolor);
+			g_grid = gdImageColorAllocateAlpha(gdImage,
+				fg.R / 4 + bg.R * 3 / 4,
+				fg.G / 4 + bg.G * 3 / 4,
+				fg.B / 4 + bg.B * 3 / 4, 0);
+		}
+
+		for ( int i = 1; i < p_gridlines; i++ ) {
+			int gy = (int)((double)p_height * (1.0 - (double)i / (double)p_gridlines));
+			gdImageLine(gdImage, 0, gy, p_width - 1, gy, g_grid);
+		}
+	}
+
 	gdImageSetAntiAliased(gdImage, g_fgcolor);
 
-	unsigned char prev = 250; // by design out of percentage range
+	unsigned char prev = 250; // sentinel: >100 means "no previous sample yet"
 
 	for ( int i = 0; i < p_width; i++ ) {
 
@@ -384,6 +411,10 @@ bool widget::LINECHART::render() {
 	return false;
 }
 
+// Heuristic smoother: scales the smoothing factor based on the magnitude of
+// the jump between the previous and current value. Large jumps are smoothed
+// more aggressively to avoid sharp visual spikes; small drifts are left alone.
+// Use curvechart's EMA smoother if you want something mathematically cleaner.
 int widget::LINECHART::smoother(int value, int smooth) {
 
 	if ( !smooth )
@@ -395,7 +426,7 @@ int widget::LINECHART::smoother(int value, int smooth) {
 
 	double d = (double)smoother;
 
-	// attempt for small curve
+	// Reduce the visual spike on extreme value jumps by capping the target.
 	if ( prev_p < next_p && prev_p < 12 && next_p > 85 )
 		next_p = 34;
 	else if ( prev_p < next_p && prev_p < 36 && next_p > 93 )

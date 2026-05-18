@@ -7,23 +7,22 @@
 #include "config.hpp"
 #include "widget.hpp"
 
-class widget::BAR : public widget::WIDGET {
+class widget::GAUGE : public widget::WIDGET {
 
 	private:
 
-		int value;
+		int value = 0;
 
 	protected:
 
 		bool _needs_draw = false;
 		bool render();
-		int smoother(int value, int smooth);
 		bool value_did_change();
 
 	public:
-		virtual const std::string type() const override { return "bar"; }
+		virtual const std::string type() const override { return "gauge"; }
 		virtual bool update() override;
 
-		explicit BAR(const std::string& name, CONFIG::MAP *cfg);
-		~BAR();
+		explicit GAUGE(const std::string& name, CONFIG::MAP *cfg);
+		~GAUGE();
 };

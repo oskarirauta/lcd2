@@ -10,6 +10,13 @@ PLUGINS:= \
 	objs/plugin_uname.o \
 	objs/plugin_uptime.o
 
+ifdef WITH_UBUS
+PLUGINS+= objs/plugin_ubus.o
+CXXFLAGS+= -DWITH_UBUS
+INCLUDES+= -I./ubus-dev/include
+LDFLAGS+= -lubus -lubox -lblobmsg_json
+endif
+
 objs/plugin.o: src/plugin.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
 
@@ -38,4 +45,7 @@ objs/plugin_uptime.o: src/plugins/uptime.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
 
 objs/plugin_fs.o: src/plugins/fs.cpp
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
+
+objs/plugin_ubus.o: src/plugins/ubus.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;

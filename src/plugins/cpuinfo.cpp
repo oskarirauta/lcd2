@@ -24,7 +24,7 @@ static expr::VARIABLE fn_cpuinfo(const expr::FUNCTION_ARGS& args) {
 	}
 
 	std::string key = common::trim_ws(common::to_lower(args[0].to_string()));
-	size_t idx = -1;
+	size_t idx = SIZE_MAX; // SIZE_MAX = "not set"
 
 	if ( key.empty()) {
 
@@ -48,7 +48,7 @@ static expr::VARIABLE fn_cpuinfo(const expr::FUNCTION_ARGS& args) {
 	else if ( args.size() > 1 ) {
 
 		idx = (size_t)args[1].to_int();
-		if ( idx < 0 || idx >= cpu -> size()) {
+		if ( idx >= cpu -> size()) {
 
 			logger::error["plugin"] << "cannot retrieve value for cpu" << idx << ", out of bounds, range is 0 - " << cpu -> size() << std::endl;
 			idx = -1;
@@ -58,7 +58,7 @@ static expr::VARIABLE fn_cpuinfo(const expr::FUNCTION_ARGS& args) {
 	std::string res;
 	std::lock_guard<std::mutex> guard(_m);
 
-	if ( idx == (size_t)-1 ) {
+	if ( idx == SIZE_MAX ) {
 
 		try {
 			res = cpu -> operator[](key);

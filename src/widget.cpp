@@ -6,7 +6,7 @@
 #include "widget_classes.hpp"
 
 std::vector<std::string> widget::types = {
-	"image", "ttf", "linechart", "bar"
+	"image", "ttf", "linechart", "curvechart", "bar", "gauge", "clock"
 };
 
 widget::WIDGET::WIDGET() {
@@ -25,6 +25,8 @@ bool widget::WIDGET::reloads() {
 	return this -> P2B("reload", false);
 }
 
+// When use_cycles is active, 'interval' is a render-cycle count rather than
+// milliseconds. The widget updates every N scheduler cycles instead of every N ms.
 bool widget::WIDGET::use_cycles() {
 
 	if ( this -> _use_cycles > -1 )
@@ -45,6 +47,9 @@ bool widget::WIDGET::use_cycles() {
 
 	this -> _properties["use_cycles"] = std::to_string(this -> _use_cycles);
 
+	logger::debug["widget"] << this -> _name << ": use_cycles=" << (bool)this -> _use_cycles
+		<< " reloads=" << this -> reloads() << std::endl;
+
 	return (bool)this -> _use_cycles;
 }
 
@@ -64,21 +69,18 @@ int widget::WIDGET::interval() {
 		else if ( i > 100 ) i = 100;
 		this -> _interval = i;
 
-	} else if ( int i = this -> P2I("interval", 1500); i >= 50 && i <= 3000 ) {
+	} else {
 
-		this -> _interval = i;
+		int i = this -> P2I("interval", 1500);
+		this -> _interval = i < 50 ? 50 : i;
 
-	} else if ( int i = this -> P2I("interval", 1500); i < 50 ) {
-
-		this -> _interval = 50;
-
-	} else if ( int i = this -> P2I("interval", 1500); i > 3000 ) {
-
-		this -> _interval = 3000;
-
-	} else this -> _interval = 1500;
+	}
 
 	this -> _properties["interval"] = std::to_string(this -> _interval);
+
+	logger::debug["widget"] << this -> _name << ": interval=" << this -> _interval
+		<< (this -> use_cycles() ? "cycles" : "ms") << std::endl;
+
 	return this -> _interval;
 }
 
@@ -116,6 +118,8 @@ unsigned char widget::convert_alpha(unsigned char gdAlpha) {
 	return gdAlpha == 127 ? 0 : ( 255 - 2 * gdAlpha );
 }
 
+// Returns true when the widget's update interval has elapsed (ms) or its
+// render-cycle counter has counted down to zero.
 bool widget::WIDGET::time_to_update() {
 
 	if ( this -> use_cycles()) {
@@ -125,25 +129,33 @@ bool widget::WIDGET::time_to_update() {
 			if ( this -> _cycle < 0 )
 				this -> _cycle = this -> interval();
 
+			logger::debug["widget"] << this -> _name << ": cycle " << this -> _cycle
+				<< "/" << this -> interval() << " (not yet)" << std::endl;
 			return false;
 
-		} else this -> _cycle = this -> interval();
+		} else {
+			this -> _cycle = this -> interval();
+			logger::debug["widget"] << this -> _name << ": cycle reached, resetting to "
+				<< this -> interval() << std::endl;
+		}
 
 	} else {
 
-		std::chrono::milliseconds next = this -> last_updated + std::chrono::milliseconds(this -> interval());
+		auto now  = std::chrono::duration_cast<std::chrono::milliseconds>(
+			std::chrono::system_clock::now().time_since_epoch());
+		auto next = this -> last_updated + std::chrono::milliseconds(this -> interval());
 
-		if ( std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()) < next )
+		if ( now < next ) {
+			logger::debug["widget"] << this -> _name << ": " << (next - now).count()
+				<< "ms remaining (interval=" << this -> interval() << "ms)" << std::endl;
 			return false;
+		}
+
+		logger::debug["widget"] << this -> _name << ": update due (interval="
+			<< this -> interval() << "ms, overdue by " << (now - next).count() << "ms)" << std::endl;
 	}
 
 	return true;
-/*
-	std::chrono::milliseconds next = this -> last_updated + std::chrono::milliseconds(this -> interval());
-	return next >=
-		std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch());
-*/
-
 }
 
 void widget::add(const std::string& name, CONFIG::MAP *cfg) {
@@ -161,7 +173,7 @@ void widget::add(const std::string& name, CONFIG::MAP *cfg) {
 
 		logger::error["config"] << "syntax error, cannot create widget without name" << std::endl;
 		return;
-	} else if ( !cfg -> contains("class")) {
+	} else if ( !cfg -> contains("class") && !cfg -> contains("type")) {
 
 		logger::error["config"] << "cannot create widget '" << _name <<
 			"', widget's class not found from configuration" << std::endl;
@@ -170,8 +182,11 @@ void widget::add(const std::string& name, CONFIG::MAP *cfg) {
 
 	std::string _class;
 
-	if ( cfg -> contains("class") && std::holds_alternative<std::string>((*cfg)["class"]))
-		_class = common::unquoted(common::to_lower(common::trim_ws(std::as_const(std::get<std::string>((*cfg)["class"])))));
+	{
+		const std::string class_key = cfg->contains("class") ? "class" : "type";
+		if ( std::holds_alternative<std::string>((*cfg)[class_key]))
+			_class = common::unquoted(common::to_lower(common::trim_ws(std::as_const(std::get<std::string>((*cfg)[class_key])))));
+	}
 
 	if ( _class.empty()) {
 
@@ -202,8 +217,14 @@ void widget::add(const std::string& name, CONFIG::MAP *cfg) {
 			this -> widgets[_name] = std::make_shared<widget::TTF>(_name, cfg);
 		else if ( _class == "linechart" )
 			this -> widgets[_name] = std::make_shared<widget::LINECHART>(_name, cfg);
+		else if ( _class == "curvechart" )
+			this -> widgets[_name] = std::make_shared<widget::CURVECHART>(_name, cfg);
 		else if ( _class == "bar" )
 			this -> widgets[_name] = std::make_shared<widget::BAR>(_name, cfg);
+		else if ( _class == "gauge" )
+			this -> widgets[_name] = std::make_shared<widget::GAUGE>(_name, cfg);
+		else if ( _class == "clock" )
+			this -> widgets[_name] = std::make_shared<widget::CLOCK>(_name, cfg);
 		else logger::error["config"] << "failed to add widget '" << _name << "', unsupported class '" << _class << "'" << std::endl;
 
 	} catch ( const std::exception& e ) {

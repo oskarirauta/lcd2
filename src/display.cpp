@@ -11,6 +11,7 @@
 
 #include "driver.hpp"
 #include "drivers/dpf.hpp"
+#include "drivers/drm.hpp"
 
 #include "rgb.hpp"
 #include "plugin.hpp"
@@ -30,6 +31,7 @@ DISPLAY::DISPLAY(CONFIG *cfg) {
 		{ "basecolor", "'000000'" },
 		{ "orientation", "0" },
 		{ "backlight", "5" },
+		{ "backlight_path", "'auto'" },
 	};
 
 	this -> _clean_up = true;
@@ -83,7 +85,7 @@ DISPLAY::DISPLAY(CONFIG *cfg) {
 
 	if ( _bl = this -> P2S("basecolor"); !_bl.empty()) {
 
-		if ( !RGBA::check_color(_bg)) {
+		if ( !RGBA::check_color(_bl)) {
 			logger::error["display"] << "invalid basecolor '" << _bl << "'" << std::endl;
 			_bl = "000000";
 		}
@@ -404,7 +406,7 @@ void DISPLAY::init_variables(CONFIG::MAP *cfg) {
 			if ( c == 1 ) {
 
 				try {
-					int d = stod(value2);
+					double d = stod(value2);
 					CONFIG::variables[key] = d;
 					continue;
 				} catch ( const std::exception& e ) {
@@ -419,7 +421,7 @@ void DISPLAY::init_variables(CONFIG::MAP *cfg) {
 void DISPLAY::init_display(CONFIG::MAP *cfg) {
 
 	std::vector<std::string> allowed_keys = {
-		"driver", "device", "foreground", "background", "basecolor", "orientation", "backlight"
+		"driver", "device", "foreground", "background", "basecolor", "orientation", "backlight", "backlight_path"
 	};
 
 	for ( auto& [k, v] : *cfg ) {
@@ -452,6 +454,15 @@ void DISPLAY::init_display(CONFIG::MAP *cfg) {
 
 			if ( !CONFIG::evaluate_string("device", key, value, value, false))
 				throw std::runtime_error("failed to initialize display, failed to evaluate 'device'");
+
+			this -> _properties[key] = "'" + common::unquoted(value) + "'";
+
+		} else if ( key == "backlight_path" ) {
+
+			if ( !CONFIG::evaluate_string("display", key, value, value, false)) {
+				logger::warning["config"] << "failure with backlight_path in display section" << std::endl;
+				continue;
+			}
 
 			this -> _properties[key] = "'" + common::unquoted(value) + "'";
 
@@ -498,19 +509,6 @@ void DISPLAY::init_display(CONFIG::MAP *cfg) {
 
 			this -> _properties[key] = value;
 
-		} else if ( key.empty()) {
-
-			logger::error["config"] << "ignored empty key for display" << std::endl;
-
-		} else if ( std::find(allowed_keys.begin(), allowed_keys.end(), key) == allowed_keys.end()) {
-
-			logger::warning["config"] << "unknown key '" << key << "' for driver, allowed keys are: " <<
-				common::join_vector(allowed_keys) << std::endl;
-			continue;
-
-		} else if ( value.empty()) {
-
-			logger::debug["verbose"] << "note: '" << key << "' in driver section does not have a value" << std::endl;
 		}
 
 	}
@@ -644,6 +642,18 @@ void DISPLAY::init_driver(const std::string& name, const std::string& device) {
                         driver = nullptr;
                         throws << "fatal error, reason: " << e.what() << std::endl;
                 }
+
+        } else if ( _name == "drm" ) {
+
+                try {
+                        std::string _bl_path = this -> P2S("backlight_path");
+                        if (_bl_path.empty()) _bl_path = "auto";
+                        driver = new drv::DRM(_device, this -> _backlight, _bl_path, this -> _width, this -> _height);
+                } catch ( std::runtime_error &e ) {
+                        driver = nullptr;
+                        throws << "fatal error, reason: " << e.what() << std::endl;
+                }
+
         } else throws << "Unsupported device driver '" << _name << "'" << std::endl;
 
 	if ( this -> driver == nullptr )
@@ -729,6 +739,9 @@ void DISPLAY::init_scheduler(CONFIG::MAP *cfg) {
 	this -> scheduler = new SCHEDULER(this, is_threaded);
 }
 
+// One-shot deferred initialisation: resolves widget references in the layout,
+// prunes missing widgets and empty layers, fires the initial on_enter timer, and
+// sets the starting page. Called at first run() or operator<< (for config dump).
 void DISPLAY::clean_up() {
 
 	if ( !this -> _clean_up )
@@ -906,6 +919,9 @@ void DISPLAY::run() {
 	else throws << "fatal error, scheduler is not ready" << std::endl;
 }
 
+// Serialises the full running config as a human-readable block.
+// NOTE: clean_up() is called here as a side effect so that the dump reflects
+// the pruned layout state (missing widgets removed, empty layers dropped).
 std::ostream& operator <<(std::ostream& os, DISPLAY& d) {
 
 	d.clean_up();

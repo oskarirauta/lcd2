@@ -22,6 +22,9 @@ class plugin {
 		class UNAME;
 		class FS;
 		class UPTIME;
+#ifdef WITH_UBUS
+		class UBUS;
+#endif
 
 		class PLUGIN : public PROPERTIES {
 

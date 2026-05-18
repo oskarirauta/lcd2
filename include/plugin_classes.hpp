@@ -2,6 +2,9 @@
 
 #include "plugin.hpp"
 #include "plugins/exec.hpp"
+#ifdef WITH_UBUS
+#include "plugins/ubus.hpp"
+#endif
 #include "plugins/cpuinfo.hpp"
 #include "plugins/meminfo.hpp"
 #include "plugins/netinfo.hpp"

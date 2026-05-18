@@ -12,7 +12,7 @@
 
 widget::BAR::BAR(const std::string& name, CONFIG::MAP *cfg) {
 
-	this -> _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));;
+	this -> _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));
 	this -> _properties.clear();
 
 	if ( name.empty())
@@ -23,9 +23,9 @@ widget::BAR::BAR(const std::string& name, CONFIG::MAP *cfg) {
 			"is missing configuration" << std::endl;
 
 	std::vector<std::string> allowed_keys = {
-		"value", "low", "high", "min", "max", "color", "colorlow", "colorhigh", "bgcolor",
+		"value", "low", "high", "min", "max", "color", "colorend", "colorlow", "colorhigh", "bgcolor",
 		"width", "height", "smooth", "hollow", "direction", "scale", "center", "opacity",
-		"inverted", "visible", "interval", "reload", "class"
+		"inverted", "visible", "interval", "reload", "border", "bordercolor", "class", "type"
 	};
 
 	for ( auto& [k, v] : *cfg ) {
@@ -43,7 +43,7 @@ widget::BAR::BAR(const std::string& name, CONFIG::MAP *cfg) {
 
 		if ( !CONFIG::parse_option("bar widget", key, value, &allowed_keys))
 			continue;
-		else if ( key == "class" ) continue;
+		else if ( key == "class" || key == "type" ) continue;
 
 		this -> _properties[key] = value;
 	}
@@ -70,7 +70,7 @@ widget::BAR::BAR(const std::string& name, CONFIG::MAP *cfg) {
 
 		logger::error["widget"] << "invalid bar widget '" << name << "' configuration, maximum value " <<
 			this -> P2I("max", -1) << " not in range 0 - 250" << std::endl;
-		this -> _properties["min"] = (int)100;
+		this -> _properties["max"] = (int)100;
 	}
 
 	if ( this -> P2I("max", -1) < this -> P2I("min", 0)) {
@@ -127,7 +127,7 @@ widget::BAR::BAR(const std::string& name, CONFIG::MAP *cfg) {
 	if ( !this -> _properties.contains("color") || this -> _properties["color"].empty() || !RGBA::check_color(this -> P2S("color"))) {
 
 		logger::error["widget"] << "invalid bar widget '" << name << "' configuration, color missing or color is invalid" << std::endl;
-		this -> _properties["fcolor"] = "'ffffff'";
+		this -> _properties["color"] = "'ffffff'";
 	}
 
 	if ( this -> P2I("low", -1) < 0 || !this -> _properties.contains("colorlow"))
@@ -208,6 +208,9 @@ widget::BAR::~BAR() {
 	this -> _properties.clear();
 }
 
+// Reads the current value expression, applies optional smoothing (steps the
+// displayed value toward the real value by at most 'smooth' per update), clamps
+// to [min, max], and returns true if the value actually changed.
 bool widget::BAR::value_did_change() {
 
 	int val = this -> P2I("value", this -> P2I("min", 0));
@@ -263,6 +266,7 @@ bool widget::BAR::update() {
 	return this -> _needs_draw;
 }
 
+// Maps a value in [min, max] to a percentage in [0, 99].
 static unsigned char val_to_percent(unsigned char value, unsigned char min, unsigned char max) {
 
 	int pval;
@@ -294,9 +298,12 @@ bool widget::BAR::render() {
 	double p_opacity = this -> P2N("opacity", 1.0);
 	bool p_inverted = this -> P2B("inverted", false);
 	std::string p_color = this -> P2S("color", "ffffff");
+	std::string p_colorend = this -> P2S("colorend", "");
 	std::string p_colorlow = this -> P2S("colorlow", "000000");
 	std::string p_colorhigh = this -> P2S("colorhigh", "000000");
 	std::string p_bgcolor = this -> P2S("bgcolor", "444444");
+	bool p_border = this -> P2B("border", false);
+	std::string p_bordercolor = this -> P2S("bordercolor", "");
 	int g_fgcolor, g_bgcolor;
 
 	if ( p_width < 1 ) {
@@ -329,10 +336,18 @@ bool widget::BAR::render() {
 		p_bgcolor = "444444";
 	}
 
+	// Border color defaults to the current foreground bar color when not set.
+	if ( p_border && ( p_bordercolor.empty() || !RGBA::check_color(p_bordercolor)))
+		p_bordercolor = p_color;
+
+	bool has_gradient = !p_colorend.empty() && RGBA::check_color(p_colorend);
+
 	RGBA fg_color(p_color);
+	RGBA fg_colorend( has_gradient ? p_colorend : p_color );
 	RGBA fg_colorlow(p_colorlow);
 	RGBA fg_colorhigh(p_colorhigh);
 	RGBA bg_color(p_bgcolor);
+	RGBA border_color(p_border ? p_bordercolor : "000000");
 
 	std::vector<RGBA> new_bitmap;
 	gdImagePtr gdImage;
@@ -345,13 +360,20 @@ bool widget::BAR::render() {
 
 	gdImageSaveAlpha(gdImage, 1);
 
-	if ( p_low > -1 && this -> value <= p_low )
-		g_fgcolor = gdImageColorAllocateAlpha(gdImage, fg_colorlow.R, fg_colorlow.G, fg_colorlow.B, fg_colorlow.GD_alpha());
-	else if ( p_high > -1 && this -> value >= p_high )
-		g_fgcolor = gdImageColorAllocateAlpha(gdImage, fg_colorhigh.R, fg_colorhigh.G, fg_colorhigh.B, fg_colorhigh.GD_alpha());
-	else
-		g_fgcolor = gdImageColorAllocateAlpha(gdImage, fg_color.R, fg_color.G, fg_color.B, fg_color.GD_alpha());
+	// Threshold colors override gradient — pick the active foreground color.
+	RGBA active_fg = fg_color;
+	RGBA active_fgend = fg_colorend;
+	if ( p_low > -1 && this -> value <= p_low ) {
+		active_fg = fg_colorlow;
+		active_fgend = fg_colorlow;
+		has_gradient = false;
+	} else if ( p_high > -1 && this -> value >= p_high ) {
+		active_fg = fg_colorhigh;
+		active_fgend = fg_colorhigh;
+		has_gradient = false;
+	}
 
+	g_fgcolor = gdImageColorAllocateAlpha(gdImage, active_fg.R, active_fg.G, active_fg.B, active_fg.GD_alpha());
 	g_bgcolor = gdImageColorAllocateAlpha(gdImage, bg_color.R, bg_color.G, bg_color.B, bg_color.GD_alpha());
 
 	gdImageFill(gdImage, 0, 0, g_bgcolor);
@@ -361,23 +383,57 @@ bool widget::BAR::render() {
 	int bar_width = (int)((double)p_width * ((double)percent * 0.01));
 	int bar_height = (int)((double)p_height * ((double)percent * 0.01));
 
-	// for hollow use gdImageRectangle
+	// Gradient helper: draw the filled bar column/row by column/row, interpolating color.
+	auto draw_gradient = [&](int x0, int y0, int x1, int y1) {
+
+		bool horizontal = ( p_direction == "east" || p_direction == "west" );
+		int steps = horizontal ? std::abs(x1 - x0) : std::abs(y1 - y0);
+
+		for ( int i = 0; i <= steps; i++ ) {
+
+			double t = steps > 0 ? (double)i / (double)steps : 0.0;
+			int r = (int)( active_fg.R + t * ( active_fgend.R - active_fg.R ));
+			int g = (int)( active_fg.G + t * ( active_fgend.G - active_fg.G ));
+			int b = (int)( active_fg.B + t * ( active_fgend.B - active_fg.B ));
+			int a = active_fg.GD_alpha();
+			int gc = gdImageColorAllocateAlpha(gdImage, r, g, b, a);
+
+			if ( horizontal ) gdImageLine(gdImage, x0 + i, y0, x0 + i, y1, gc);
+			else              gdImageLine(gdImage, x0, y0 + i, x1, y0 + i, gc);
+		}
+	};
+
+	// hollow=1 draws only the outline; filled draws a solid rectangle (or gradient).
 	if ( bar_height > 0 && p_direction == "north" && p_hollow )
 		gdImageRectangle(gdImage, 0, p_height - 1, p_width - 1, p_height - 1 - bar_height, g_fgcolor);
+	else if ( bar_height > 0 && p_direction == "north" && !p_hollow && has_gradient )
+		draw_gradient(0, p_height - 1 - bar_height, p_width - 1, p_height - 1);
 	else if ( bar_height > 0 && p_direction == "north" && !p_hollow )
 		gdImageFilledRectangle(gdImage, 0, p_height - 1, p_width - 1, p_height - 1 - bar_height, g_fgcolor);
 	else if ( bar_width > 0 && p_direction == "east" && p_hollow )
 		gdImageRectangle(gdImage, 0, 0, bar_width, p_height - 1, g_fgcolor);
+	else if ( bar_width > 0 && p_direction == "east" && !p_hollow && has_gradient )
+		draw_gradient(0, 0, bar_width, p_height - 1);
+	else if ( bar_width > 0 && p_direction == "east" && !p_hollow )
+		gdImageFilledRectangle(gdImage, 0, 0, bar_width, p_height - 1, g_fgcolor);
 	else if ( bar_height > 0 && p_direction == "south" && p_hollow )
 		gdImageRectangle(gdImage, 0, 0, p_width - 1, bar_height, g_fgcolor);
+	else if ( bar_height > 0 && p_direction == "south" && !p_hollow && has_gradient )
+		draw_gradient(0, 0, p_width - 1, bar_height);
 	else if ( bar_height > 0 && p_direction == "south" && !p_hollow )
 		gdImageFilledRectangle(gdImage, 0, 0, p_width - 1, bar_height, g_fgcolor);
 	else if ( bar_width > 0 && p_direction == "west" && p_hollow )
 		gdImageRectangle(gdImage, p_width - 1, 0, p_width - 1 - bar_width, p_height - 1, g_fgcolor);
+	else if ( bar_width > 0 && p_direction == "west" && !p_hollow && has_gradient )
+		draw_gradient(p_width - 1 - bar_width, 0, p_width - 1, p_height - 1);
 	else if ( bar_width > 0 && p_direction == "west" && !p_hollow )
 		gdImageFilledRectangle(gdImage, p_width - 1, 0, p_width - 1 - bar_width, p_height - 1, g_fgcolor);
-	else if ( bar_width > 0 )
-		gdImageFilledRectangle(gdImage, 0, 0, bar_width, p_height - 1, g_fgcolor);
+
+	// Optional 1-pixel border around the full bar area (regardless of fill).
+	if ( p_border ) {
+		int g_bordercolor = gdImageColorAllocateAlpha(gdImage, border_color.R, border_color.G, border_color.B, border_color.GD_alpha());
+		gdImageRectangle(gdImage, 0, 0, p_width - 1, p_height - 1, g_bordercolor);
+	}
 
 	if ( p_scale > 0 && p_scale != 1.0 ) {
 

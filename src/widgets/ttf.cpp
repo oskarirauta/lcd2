@@ -59,7 +59,9 @@ widget::TTF::TTF(const std::string& name, CONFIG::MAP *cfg) {
 	std::vector<std::string> allowed_keys = {
 		"text", "font", "size", "color", "width", "height", "align", "offset",
 		"scale", "inverted", "opacity", "center", "debugborder", "debugbordercolor",
-		"visible", "reload", "interval", "class"
+		"shadow", "shadowcolor", "shadowoffset",
+		"outline", "outlinecolor",
+		"visible", "reload", "interval", "class", "type"
 	};
 
 	for ( auto& [k, v] : *cfg ) {
@@ -77,7 +79,7 @@ widget::TTF::TTF(const std::string& name, CONFIG::MAP *cfg) {
 
 		if ( !CONFIG::parse_option("ttf widget", key, value, &allowed_keys))
 			continue;
-		else if ( key == "class" ) continue;
+		else if ( key == "class" || key == "type" ) continue;
 
 		this -> _properties[key] = value;
 	}
@@ -111,9 +113,10 @@ widget::TTF::~TTF() {
 
 bool widget::TTF::update() {
 
-	if ( !this -> _needs_update && this -> reloads() && this -> interval() > 0 && this -> time_to_update())
+	if ( !this -> _needs_update && this -> reloads() && this -> interval() > 0 && this -> time_to_update()) {
+		logger::debug["widget"] << this -> _name << ": scheduling update" << std::endl;
 		this -> _needs_update = true;
-	else if ( !this -> _needs_update )
+	} else if ( !this -> _needs_update )
 		return false;
 
 	if ( !this -> visible() && this -> _was_visible && !this -> bitmap.empty()) {
@@ -177,6 +180,12 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 	bool p_debugborder = this -> P2B("debugborder", false);
 	std::string p_debugbordercolor = this -> P2S("debugbordercolor", "ffffff");
 
+	bool p_shadow = this -> P2B("shadow", false);
+	std::string p_shadowcolor = this -> P2S("shadowcolor", "000000");
+	int p_shadowoffset = this -> P2I("shadowoffset", 2);
+	bool p_outline = this -> P2B("outline", false);
+	std::string p_outlinecolor = this -> P2S("outlinecolor", "000000");
+
 	std::string m_text = "[Äp}§|";
 
 	TTF_RECT b_rect;
@@ -226,8 +235,22 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 		return false;
 	}
 
-	t_width = b_rect.width() + 2;
+	// Rendering at x = upper_left.x + p_offset - 1 shifts pixels right by
+	// (upper_left.x + p_offset - 1) vs the null-call bounding box, so the
+	// rightmost pixel lands at lower_right.x + upper_left.x + p_offset - 1.
+	// The image must be wide enough to contain that pixel.
+	t_width = b_rect.lower_right.x + std::max(0, b_rect.upper_left.x) + std::max(0, p_offset) + 2;
 	t_height = b_rect.height() > m_rect.height() ? b_rect.height() : m_rect.height();
+
+	// Expand canvas so shadow/outline are not clipped off the edges.
+	if ( p_shadow && p_shadowoffset > 0 ) {
+		t_width  += p_shadowoffset;
+		t_height += p_shadowoffset;
+	}
+	if ( p_outline ) {
+		t_width  += 2;
+		t_height += 2;
+	}
 
 	gdImage = gdImageCreateTrueColor(
 		p_width > 0 ? p_width : t_width,
@@ -265,6 +288,28 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 	y = p_height - m_rect.lower_left.y - m_rect.upper_left.y; // * 0.5;
 	y += t_height * 0.12;
 	x += -1 + p_offset;
+
+	// Shadow: draw text offset behind main text
+	if ( p_shadow ) {
+
+		if ( !RGBA::check_color(p_shadowcolor)) p_shadowcolor = "000000";
+		RGBA shadow_rgba(p_shadowcolor);
+		int s_color = gdImageColorAllocateAlpha(gdImage, shadow_rgba.R, shadow_rgba.G, shadow_rgba.B, shadow_rgba.GD_alpha());
+		gdImageStringTTF(gdImage, b_rect.gd(), s_color, font.c_str(), p_size, 0.0, x + p_shadowoffset, y + p_shadowoffset, text.c_str());
+	}
+
+	// Outline: draw text at 8 surrounding pixel offsets, then main text on top
+	if ( p_outline ) {
+
+		if ( !RGBA::check_color(p_outlinecolor)) p_outlinecolor = "000000";
+		RGBA outline_rgba(p_outlinecolor);
+		int o_color = gdImageColorAllocateAlpha(gdImage, outline_rgba.R, outline_rgba.G, outline_rgba.B, outline_rgba.GD_alpha());
+
+		for ( int dy = -1; dy <= 1; dy++ )
+			for ( int dx = -1; dx <= 1; dx++ )
+				if ( dx != 0 || dy != 0 )
+					gdImageStringTTF(gdImage, b_rect.gd(), o_color, font.c_str(), p_size, 0.0, x + dx, y + dy, text.c_str());
+	}
 
 	gdImageSetAntiAliased(gdImage, f_color);
 

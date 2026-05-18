@@ -3,43 +3,58 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
-#include <stop_token>
+#include <condition_variable>
+#include <chrono>
 
 #include "layout.hpp"
 
 class DISPLAY;
+
 class SCHEDULER {
 
-	friend class DISPLAY;
+    friend class DISPLAY;
 
-	private:
+    private:
 
-		bool run_once();
+        DISPLAY* _display = nullptr;
+        bool _is_threaded = false;
 
-		static void update_plugins(std::stop_token token, SCHEDULER& sched);
-		static void update_timers(std::stop_token token, SCHEDULER& sched);
-		static void update_widgets(std::stop_token token, SCHEDULER& sched);
-		static void update_layout(std::stop_token token, SCHEDULER& sched);
-		static void update_display(std::stop_token token, SCHEDULER& sched);
+        // Current page (atomic so data and render threads can read safely)
+        std::atomic<int> _current_page{0};
 
-		void run_unthreaded(bool once = false);
-		void run_threaded();
+        // Stop requested by signal or display shutdown
+        std::atomic_bool _stop{false};
 
-	protected:
+        // Protects CONFIG::variables and plugin/timer state across threads.
+        // Data thread holds it exclusively during plugin+timer updates.
+        // Render thread holds it during widget expression evaluation.
+        std::mutex _data_mutex;
 
-		int current_page;
-		bool _exit_loop = false;
-		DISPLAY *display = nullptr;
-		bool _run_once = true;
-		bool _is_threaded = false;
+        // Worker threads (threaded mode only)
+        std::jthread _data_thread;
+        std::jthread _render_thread;
 
-	public:
+        bool run_once();
 
-		bool threading();
-		void exit_loop(bool value);
-		bool exit_loop();
-		void run();
+        void update_plugins();
+        void update_timers();
+        bool update_widgets();
 
-		SCHEDULER(DISPLAY *display, bool threaded = true);
-		~SCHEDULER();
+        void data_loop(std::stop_token token);
+        void render_loop(std::stop_token token);
+
+        void run_threaded();
+        void run_unthreaded();
+
+    public:
+
+        bool threading() const;
+
+        void exit_loop(bool value);
+        bool exit_loop() const;
+
+        void run();
+
+        SCHEDULER(DISPLAY* display, bool threaded = true);
+        ~SCHEDULER();
 };

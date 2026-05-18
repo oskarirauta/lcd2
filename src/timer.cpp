@@ -184,13 +184,15 @@ TIMER& TIMER::operator =(const TIMER& other) {
 	return *this;
 }
 
+// Returns the timer's update interval in milliseconds, clamped to [50, 86400000].
+// Defaults to 1500 ms when not configured.
 int TIMER::interval() {
 
 	if ( auto _p = this -> property["interval"]; _p.is_number()) {
 
 		int i = _p.to_int();
 		if ( i < 50 ) i = 50;
-		else if ( i > 3000 ) i = 3000;
+		else if ( i > 86400000 ) i = 86400000;
 		return i;
 
 	} else return 1500;

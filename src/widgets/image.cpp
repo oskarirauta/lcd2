@@ -12,7 +12,7 @@
 
 widget::IMAGE::IMAGE(const std::string& name, CONFIG::MAP *cfg) {
 
-	this -> _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));;
+	this -> _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));
 	this -> _properties.clear();
 
 	if ( name.empty())
@@ -24,7 +24,7 @@ widget::IMAGE::IMAGE(const std::string& name, CONFIG::MAP *cfg) {
 
 	std::vector<std::string> allowed_keys = {
 		"file", "width", "height", "scale", "visible", "inverted",
-		"center", "opacity", "reload", "interval", "class"
+		"center", "opacity", "reload", "interval", "class", "type"
 	};
 
 	for ( auto& [k, v] : *cfg ) {
@@ -42,7 +42,7 @@ widget::IMAGE::IMAGE(const std::string& name, CONFIG::MAP *cfg) {
 
 		if ( !CONFIG::parse_option("image widget", key, value, &allowed_keys))
 			continue;
-		else if ( key == "class" ) continue;
+		else if ( key == "class" || key == "type" ) continue;
 
 		this -> _properties[key] = value;
 	}
@@ -115,9 +115,11 @@ bool widget::IMAGE::update() {
 	return this -> _needs_draw;
 }
 
+// Opens filename for binary reading into *fd. Returns false and logs on failure.
+// The format detector in render() calls this once per image type it tries.
 static bool open_file(FILE **fd, const std::string& filename, const std::string& name) {
 
-	if ( *fd = fopen(filename.c_str(), "rb"); fd == nullptr ) {
+	if ( *fd = fopen(filename.c_str(), "rb"); *fd == nullptr ) {
 
 		logger::error["widget"] << "Image " << name << ": fopen(" << filename << ") failed: " <<
 			std::strerror(errno) << std::endl;

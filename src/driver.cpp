@@ -8,7 +8,7 @@
 #include "display.hpp"
 #include "driver.hpp"
 
-std::vector<std::string> drv::list({ "dpf" });
+std::vector<std::string> drv::list({ "dpf", "drm" });
 
 int drv::DRIVER::pwidth() {
 	return this -> _pwidth;
@@ -80,7 +80,7 @@ int drv::DRIVER::backlight() {
 void drv::DRIVER::blit(const std::vector<RECT>& rects) {
 
 	for ( const RECT& rect : rects )
-		this -> blit(rect.min.x, rect.min.x, rect.max.x - rect.min.x, rect.max.y - rect.min.y);
+		this -> blit(rect.min.x, rect.min.y, rect.max.x - rect.min.x, rect.max.y - rect.min.y);
 }
 
 void drv::DRIVER::blit() {

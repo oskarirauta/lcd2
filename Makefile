@@ -4,9 +4,10 @@ all: world
 
 CXX?=g++
 CXXFLAGS?=--std=c++23 -Os -Wall -fPIC -g
-LDFLAGS?=-L/lib -L/usr/lib -lgd -lusb
+LDFLAGS?=-L/lib -L/usr/lib -lgd -lusb -ldrm
+DRM_INCLUDES?=-I/usr/include/libdrm
 
-INCLUDES+= -I./include
+INCLUDES+= -I./include -I/usr/include/libdrm
 
 #INCLUDES+= -I./include -I./jsoncpp/include
 #LIBS:=-lubox -lubus -lblobmsg_json
@@ -21,6 +22,10 @@ include logger/Makefile.inc
 include throws/Makefile.inc
 include signal/Makefile.inc
 include expr/Makefile.inc
+ifdef WITH_UBUS
+include json/Makefile.inc
+endif
+include usage/Makefile.inc
 
 include Makefile.drivers
 include Makefile.plugins
@@ -73,9 +78,9 @@ objs/scheduler.o: src/scheduler.cpp
 objs/main.o: main.cpp
 	$(CXX) $(CXXFLAGS) $(INCLUDES) -c -o $@ $<;
 
-lcd2: $(COMMON_OBJS) $(LOGGER_OBJS) $(THROWS_OBJS) \
+lcd2: $(COMMON_OBJS) $(LOGGER_OBJS) $(THROWS_OBJS) $(SIGNAL_OBJS) \
 	$(NETINFO_OBJS) $(CPU_OBJS) $(MEM_OBJS) $(PROCESS_OBJS) \
-	$(UPTIME_OBJS) $(SIGNAL_OBJS) $(EXPR_OBJS) \
+	$(UPTIME_OBJS) $(EXPR_OBJS) $(JSON_OBJS) $(USAGE_OBJS) \
 	$(OBJS) $(DRIVERS) $(PLUGINS) $(WIDGETS) $(ACTIONS)
 	$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS);
 

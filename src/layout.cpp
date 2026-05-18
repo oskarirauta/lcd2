@@ -490,6 +490,16 @@ LAYOUT::LAYOUT(CONFIG::MAP *cfg) {
 
 				} else if ( key2 != "timers" && key2 != "on_enter" && key2 != "on_exit" && !key2.starts_with("layer")) {
 
+					if ( std::holds_alternative<std::string>(v2)) {
+						try {
+							LAYOUT::WIDGET_LINK wl = LAYOUT::WIDGET_LINK(key2, std::get<std::string>(v2));
+							if ( !this->pages[page_no].layers.contains(0))
+								this->pages[page_no].layers[0] = LAYOUT::LAYER(0);
+							this->pages[page_no].layers[0].widgets.push_back(wl);
+							continue;
+						} catch ( const std::exception& ) {}
+					}
+
 					logger::error["config"] << "syntax error in page configuration, unknown key '" << key2 << "'" << std::endl;
 					continue;
 

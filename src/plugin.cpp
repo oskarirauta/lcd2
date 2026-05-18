@@ -5,7 +5,11 @@
 #include "logger.hpp"
 #include "plugin_classes.hpp"
 
-common::lowercase_map<bool> plugin::types = { };
+common::lowercase_map<bool> plugin::types = {
+#ifdef WITH_UBUS
+	{ "ubus", true }
+#endif
+};
 
 plugin::PLUGIN::PLUGIN() {
 }
@@ -52,11 +56,18 @@ void plugin::add(const std::string& name, CONFIG::MAP *cfg) {
 		return;
 	}
 
-	if ( common::is_any_of(name, { "exec", "cpuinfo", "meminfo", "netinfo", "file", "test", "uname", "fs", "uptime" })) {
+	if ( common::is_any_of(_name, { "exec", "cpuinfo", "meminfo", "netinfo", "file", "test", "uname", "fs", "uptime" })) {
 
-		logger::notice["config"] << "plugin " << name << " does not have anything to configure" << std::endl;
+		logger::notice["config"] << "plugin " << _name << " does not have anything to configure" << std::endl;
 		return;
 	}
+
+#ifdef WITH_UBUS
+	if ( _name == "ubus" ) {
+		plugin::UBUS::configure(cfg);
+		return;
+	}
+#endif
 
 	if ( !plugin::types.contains(_name)) {
 
@@ -131,7 +142,9 @@ plugin::plugin() {
 	this -> plugins["uname"] = std::make_shared<plugin::UNAME>(nullptr);
 	this -> plugins["uptime"] = std::make_shared<plugin::UPTIME>(nullptr);
 	this -> plugins["test"] = std::make_shared<plugin::TEST>(nullptr);
-
+#ifdef WITH_UBUS
+	this -> plugins["ubus"] = std::make_shared<plugin::UBUS>(nullptr);
+#endif
 }
 
 plugin::~plugin() {

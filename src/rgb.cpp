@@ -19,6 +19,8 @@ RGBA::RGBA() noexcept {
 	this -> A = 0xff;
 }
 
+// Returns true if the string is a valid hex color: 3, 4, 6, or 8 hex digits,
+// optionally prefixed with '#'. Accepts both upper- and lower-case A-F.
 bool RGBA::check_color(const std::string& hex) {
 
 	std::string s(hex);
@@ -26,16 +28,20 @@ bool RGBA::check_color(const std::string& hex) {
 	if ( s.front() == '#' )
 		s.erase(0, 1);
 
+	// Valid lengths: 3 (RGB shorthand), 4 (RGBA shorthand), 6 (RGB), 8 (RGBA).
+	// Length 7 is not valid (would be #RGB + one extra char).
 	if ( s.size() < 3 || s.size() == 7 || s.size() > 8 )
 		return false;
 
-	for ( char ch : hex )
-		if ( !std::isdigit(ch) && ( ch != 'a' && ch != 'b' && ch != 'c' && ch != 'd' && ch != 'e' && ch != 'f' ))
+	for ( char ch : s )
+		if ( !std::isdigit(ch) && ( ch < 'A' || ch > 'F' ) && ( ch < 'a' || ch > 'f' ))
 			return false;
 
 	return true;
 }
 
+// Strips '#', expands shorthand lengths (3→6, 4→8), lowercases, and validates.
+// Throws std::runtime_error on empty, invalid-length, or out-of-range input.
 const std::string RGBA::hex_normalizer(const std::string& hex) {
 
 	std::string in(hex);
@@ -151,8 +157,9 @@ RGBA& RGBA::operator =(const RGBA& other) {
 	return *this;
 }
 
+// Returns alpha as a 0.0–1.0 fraction (0 = fully transparent, 1 = fully opaque).
 double RGBA::alpha() {
-	return this -> A == 0 ? 0 : ( this -> A / 0xff );
+	return (double)this->A / 0xff;
 }
 
 std::vector<unsigned char> RGBA::RGB565() const {
@@ -163,6 +170,7 @@ std::vector<unsigned char> RGBA::RGB565() const {
 		};
 }
 
+// Converts our 0–255 alpha (255 = opaque) to GD's 0–127 alpha (0 = opaque).
 unsigned char RGBA::GD_alpha() {
 	unsigned char a = this -> A * 0.5;
 	if ( a > 127 ) a = 127;

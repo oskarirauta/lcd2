@@ -20,7 +20,10 @@ class widget {
 		class IMAGE;
 		class TTF;
 		class LINECHART;
+		class CURVECHART;
 		class BAR;
+		class GAUGE;
+		class CLOCK;
 
 		class WIDGET : public PROPERTIES {
 
@@ -35,7 +38,7 @@ class widget {
 				bool _needs_update = false;
 				bool _needs_draw = false;
 				int _interval = -1;
-				char _use_cycles = -1;
+				int _use_cycles = -1;
 				int _cycle = -1;
 				bool _was_visible = false;
 

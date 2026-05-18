@@ -24,7 +24,7 @@ class widget::LINECHART : public widget::WIDGET {
 		int smoother(int value, int smooth);
 
 	public:
-		virtual const std::string type() const override { return "image"; }
+		virtual const std::string type() const override { return "linechart"; }
 		virtual bool update() override;
 
 		explicit LINECHART(const std::string& name, CONFIG::MAP *cfg);

@@ -127,7 +127,10 @@ static std::string trim_first_word(const std::string& s, std::string& value) {
 	return "";
 }
 
-static std::string quickfix_value(const std::string& s) { // remove comments at end of value if value is simple, such as quoted string or word or number
+// Strips trailing inline comments from simple config values (numbers, quoted
+// strings, bare words). Complex expressions that contain spaces or operators
+// are returned as-is and let the expression evaluator sort them out.
+static std::string quickfix_value(const std::string& s) {
 
 	std::string ss(common::ltrim_ws(std::as_const(s)));
 
@@ -224,10 +227,18 @@ static std::string quickfix_value(const std::string& s) { // remove comments at 
 
 			ss = common::ltrim_ws(ss);
 
+			// Simple word optionally followed by a comment: treat as string literal.
+			// A word followed by non-comment content is assumed to be an expression
+			// and returned as-is so the evaluator can handle it.
 			if ( ss.empty() || ss.front() == '#' )
-				return res;
+				return "'" + res + "'";
 			else
 				return common::ltrim_ws(std::as_const(s));
+
+		} else if ( !res.empty() && ss.empty()) {
+
+			// Word was the entire value — auto-quote it as a string literal.
+			return "'" + res + "'";
 		}
 	}
 
@@ -816,13 +827,14 @@ bool CONFIG::evaluate_int(const std::string& section, const std::string& key, co
 	return true;
 }
 
+// Evaluates an expression and assigns the full RESULT (preserving string vs numeric type).
 bool CONFIG::evaluate_result(const std::string& section, const std::string& key, const std::string& expr, expr::RESULT& value) {
 
 	expr::expression e(expr);
 
 	try {
 		expr::RESULT result = e.evaluate(&functions, &variables);
-		value = result.operator double();
+		value = result;
 
 	} catch ( std::runtime_error &e ) {
 
