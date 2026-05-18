@@ -25,3 +25,6 @@
 [submodule "signal"]
 	path = signal
 	url = https://github.com/oskarirauta/SIG_cpp.git
+[submodule "expr"]
+	path = expr
+	url = https://github.com/oskarirauta/expr_cpp.git
