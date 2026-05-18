@@ -1,16 +1,17 @@
 all: world
 
-# requires libusb-compat
+# requires libusb-compat, libdrm and libgd
 
 CXX?=g++
 CXXFLAGS?=--std=c++23 -Os -Wall -fPIC -g
 LDFLAGS?=-L/lib -L/usr/lib -lgd -lusb -ldrm
 DRM_INCLUDES?=-I/usr/include/libdrm
 
-INCLUDES+= -I./include -I/usr/include/libdrm
-
-#INCLUDES+= -I./include -I./jsoncpp/include
-#LIBS:=-lubox -lubus -lblobmsg_json
+INCLUDES+= \
+	-I./include \
+	-I/usr/include/libdrm \
+	-I./rva/include \
+	-I./tsl/include
 
 include cpu/Makefile.inc
 include mem/Makefile.inc
