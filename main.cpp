@@ -25,7 +25,7 @@
 
 static void die_handler(int signum) {
 
-	logger::info << Signal::string(signum) << " signal received" << std::endl;
+	logger::info << SIG::to_string(signum) << " signal received" << std::endl;
 	display -> scheduler -> exit_loop(true);
 }
 
@@ -44,12 +44,14 @@ int main(int argc, char **argv) {
 		logger::silence = true;
 	}
 
-	Signal::register_handler(die_handler, {
-		{ static_cast<Signal::type>(SIGTERM), true },
-		{ static_cast<Signal::type>(SIGHUP), true },
-		{ static_cast<Signal::type>(SIGINT), true },
-		{ static_cast<Signal::type>(SIGQUIT), true }
-	});
+	SIG handler = {
+		.TERM = die_handler,
+		.HUP = die_handler,
+		.INT = die_handler,
+		.QUIT = die_handler
+	};
+
+	handler.install();
 
 	CONFIG *cfg = nullptr;
 
