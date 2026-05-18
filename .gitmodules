@@ -37,3 +37,6 @@
 [submodule "rva"]
 	path = rva
 	url = https://github.com/codeinred/recursive-variant.git
+[submodule "tsl"]
+	path = tsl
+	url = https://github.com/Tessil/ordered-map.git
