@@ -368,12 +368,15 @@ void drv::DRM::blit_fullscreen() {
     std::vector<std::pair<int, const std::vector<RGBA>*>> layers;
     if (!collect_layers(display->page_number(), layers)) return;
 
+    bool force = _force_full;
+    _force_full = false;
+
     bool any_written = false;
     for (int y = 0; y < _pheight; y++) {
         for (int x = 0; x < _pwidth; x++) {
             int idx = y * _pwidth + x;
             RGBA c = blend_pixel(layers, idx);
-            if (this->canvas[idx] != c) {
+            if (force || this->canvas[idx] != c) {
                 this->canvas[idx] = c;
                 write_pixel(x, y, c);
                 any_written = true;
@@ -381,13 +384,31 @@ void drv::DRM::blit_fullscreen() {
         }
     }
 
-    if (any_written)
+    if (any_written || force)
         mark_dirty();
 }
 
 void drv::DRM::clear() {
 
     if (!_buffer.map) return;
+
+    // Two-step blank for delta-based remote drivers. USB-attached DRM panels
+    // (ax206, UDL, ...) often upload only pixels that differ from a kernel-side
+    // shadow buffer that starts all-black. Writing pure black over that black
+    // shadow is a no-op there, so whatever the panel already shows (e.g. the
+    // power-on factory demo image) survives. Push a near-black sentinel
+    // (#000001, indistinguishable to the eye) across the whole screen first so
+    // a real change is forced up to the panel, then overwrite it with black:
+    // black now differs from the sentinel and is uploaded too, leaving the
+    // panel truly black. (The kernel's own coalescing usually merges the two
+    // into a single black frame, so no flash is visible.)
+    RGBA sentinel(0, 0, 1, 255); // #000001
+    std::fill(this->canvas.begin(), this->canvas.end(), sentinel);
+    for (int y = 0; y < _pheight; y++)
+        for (int x = 0; x < _pwidth; x++)
+            write_pixel(x, y, sentinel);
+    mark_dirty();
+
     std::fill(this->canvas.begin(), this->canvas.end(), RGBA(RGBA::BLACK));
     memset(_buffer.map, 0, _buffer.size);
     mark_dirty();

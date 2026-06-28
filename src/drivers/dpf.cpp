@@ -181,6 +181,22 @@ void drv::DPF::blit_fullscreen() {
 	RECT rect;
 	std::vector<RECT> rects;
 
+	// One-shot forced full repaint (startup): write every pixel and send the
+	// whole screen in one transfer, bypassing the dirty-rect delta below, so
+	// the panel is fully painted regardless of its prior/demo content.
+	if ( this -> _force_full ) {
+
+		this -> _force_full = false;
+
+		for ( int fy = 0; fy < this -> _pheight; fy++ )
+			for ( int fx = 0; fx < this -> _pwidth; fx++ )
+				this -> canvas[(fy * this -> _pwidth) + fx] = this -> blend(fx, fy);
+
+		this -> ax_blit(this -> canvas, RECT(0, 0, this -> _pwidth, this -> _pheight));
+		this -> rect_reset(this -> bounds);
+		return;
+	}
+
 	while ( true ) {
 
 		if ( y > this -> _pheight )
@@ -264,7 +280,12 @@ void drv::DPF::blit_fullscreen() {
 
 void drv::DPF::clear() {
 
-	this -> blit(0, 0, this -> _pwidth, this -> _pheight);
+	// DPF drives the panel directly over USB with no remote delta, so a single
+	// opaque full-screen black blit reliably wipes any prior/demo content (no
+	// #000001 sentinel needed, unlike the DRM path).
+	std::fill(this -> canvas.begin(), this -> canvas.end(), RGBA(RGBA::BLACK));
+	this -> ax_blit(this -> canvas, RECT(0, 0, this -> _pwidth, this -> _pheight));
+	this -> rect_reset(this -> bounds);
 }
 
 std::vector<unsigned char> g_excmd = {

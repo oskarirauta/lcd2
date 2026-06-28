@@ -25,6 +25,13 @@ namespace drv {
 			virtual RGBA blend(int x, int y);
 			std::vector<RGBA> canvas;
 
+			// One-shot: forces the next full-screen blit to write and send
+			// every pixel, bypassing the per-pixel dirty/delta check. Set at
+			// construction so the first frame fully repaints the panel rather
+			// than assuming it starts in the driver's blank canvas state (the
+			// panel may retain previous/demo content from before lcd2 ran).
+			bool _force_full = true;
+
 		public:
 
 			virtual const std::string name() = 0;
