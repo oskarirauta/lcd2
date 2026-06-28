@@ -20,18 +20,23 @@ void action::PREVPAGE::execute(const std::vector<expr::RESULT>& args) {
 
 	int page_no = display -> layout -> page_sequence[display -> layout -> prev_page_index];
 
-	if ( !display -> layout -> pages.contains(page_no)) {
+	if ( page_no == display -> page_current()) {
 
-		logger::error["action"] << "page::next cannot switch to page " << page_no << ", page does not exist in layout" << std::endl;
+		// Targeting the already-active page is a benign no-op, not an error.
+		logger::debug["action"] << "page::prev: " << LAYOUT::page_name(page_no) << " already active, skipping" << std::endl;
+
+	} else if ( !display -> layout -> pages.contains(page_no)) {
+
+		logger::error["action"] << "page::prev cannot switch to page " << page_no << ", page does not exist in layout" << std::endl;
 
 	} else {
 
 		if ( logger::loglevel() == logger::debug.id())
-			logger::info["action"] << "page::next is switching to page " << LAYOUT::page_name(page_no) << std::endl;
+			logger::debug["action"] << "page::prev is switching to page " << LAYOUT::page_name(page_no) << std::endl;
 
 		if ( !display -> setpage(page_no)) {
 
-			logger::vverbose["action"] << "page::next action failed to switch to page " << page_no << std::endl;
+			logger::error["action"] << "page::prev action failed to switch to page " << page_no << std::endl;
 		}
 	}
 

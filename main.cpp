@@ -6,7 +6,7 @@
 #include "display.hpp"
 #include "usage.hpp"
 
-#define LCD2_VERSION "1.0.2"
+#define LCD2_VERSION "1.2.0"
 
 static void die_handler(int signum) {
 	logger::info << SIG::to_string(signum) << " received, exiting" << std::endl;
@@ -41,15 +41,15 @@ int main(int argc, char **argv) {
 		}
 	};
 
+	if ( usage["version"] ) {
+		std::cout << usage.version() << std::endl;
+		return 0;
+	}
+
 	if ( usage["help"] || ( !usage["config"] && !usage["file"] )) {
 		std::cout << usage << "\n" << usage.help() << "\n" << std::endl;
 		if ( !usage["help"] )
 			std::cout << "error: configuration file not set\n" << std::endl;
-		return 0;
-	}
-
-	if ( usage["version"] ) {
-		std::cout << usage.version() << std::endl;
 		return 0;
 	}
 
@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
 	else
 		logger::loglevel(logger::info);
 
-	if ( !usage["silent"] || usage["quiet"] )
+	if ( !usage["silent"] )
 		std::cout << usage << "\n" << std::endl;
 
 	std::string config_file = "lcd2.conf";

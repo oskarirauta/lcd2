@@ -20,7 +20,14 @@ void action::NEXTPAGE::execute(const std::vector<expr::RESULT>& args) {
 
 	int page_no = display -> layout -> page_sequence[display -> layout -> next_page_index];
 
-	if ( !display -> layout -> pages.contains(page_no)) {
+	if ( page_no == display -> page_current()) {
+
+		// The sequence cursor commonly starts on the already-active page (the
+		// sequence's first entry is usually the default page). Targeting the
+		// current page is a benign no-op, not an error — skip and advance.
+		logger::debug["action"] << "page::next: " << LAYOUT::page_name(page_no) << " already active, skipping" << std::endl;
+
+	} else if ( !display -> layout -> pages.contains(page_no)) {
 
 		logger::error["action"] << "page::next cannot switch to page " << page_no << ", page does not exist in layout" << std::endl;
 

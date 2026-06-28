@@ -231,7 +231,7 @@ bool widget::GAUGE::render() {
 
 	int end_angle   = p_startangle + p_sweepangle;
 
-	double ratio = (double)(p_value - p_min) / (double)(p_max - p_min);
+	double ratio = ( p_max - p_min ) != 0 ? (double)(p_value - p_min) / (double)(p_max - p_min) : 0.0;
 	int value_end_angle = p_startangle + (int)(ratio * (double)p_sweepangle);
 
 	gdImagePtr gdImage = gdImageCreateTrueColor(p_width, p_height);

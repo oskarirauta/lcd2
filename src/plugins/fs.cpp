@@ -168,8 +168,8 @@ plugin::FS::~FS() {
 	CONFIG::functions.erase("fs::available");
 
 	CONFIG::functions.erase("fs::size::hr");
-	CONFIG::functions.erase("fs::size::hr");
-	CONFIG::functions.erase("fs::size::hr");
-	CONFIG::functions.erase("fs::size::hr");
-	CONFIG::functions.erase("fs::size::hr");
+	CONFIG::functions.erase("fs::capacity::hr");
+	CONFIG::functions.erase("fs::used::hr");
+	CONFIG::functions.erase("fs::free::hr");
+	CONFIG::functions.erase("fs::available::hr");
 }

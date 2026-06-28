@@ -163,8 +163,14 @@ void SCHEDULER::render_loop(std::stop_token token) {
                     << "ms update_widgets=" << widget_ms << "ms" << std::endl;
         }
 
-        // Layout render and display blit don't touch CONFIG::variables → no lock needed
+        // layout->render() + refresh() must be serialised against the data thread:
+        // a timer action there can call setpage(), which runs the SAME render/blit
+        // pipeline (update_widgets + layout->render + refresh). Without the lock the
+        // two threads concurrently mutate layout->pages widget lists, display->canvas
+        // and widget bitmaps -> iterator invalidation / use-after-free. Share
+        // _data_mutex (setpage runs under it on the data thread, so they exclude).
         if (any_updated && !_stop.load(std::memory_order_relaxed)) {
+            std::lock_guard<std::mutex> lock(_data_mutex);
             auto t3 = std::chrono::steady_clock::now();
             _display->layout->render();
             auto t4 = std::chrono::steady_clock::now();
@@ -277,15 +283,22 @@ void SCHEDULER::run() {
     logger::verbose["scheduler"] << "starting ("
         << (_is_threaded ? "threaded" : "unthreaded") << ")" << std::endl;
 
-    _current_page.store(_display->page_number(), std::memory_order_relaxed);
+    // Initial snapshot + render. page_number() throws (via throws<<) when the
+    // current page is absent from the canvas (e.g. a misconfigured start page
+    // whose layers reference only missing widgets); guard it so the exception
+    // cannot escape run() and terminate the process. The main loops below have
+    // their own guards around page_number() for the same reason.
+    try {
+        _current_page.store(_display->page_number(), std::memory_order_relaxed);
 
-    // Single initial render so the display shows something immediately
-    {
+        // Single initial render so the display shows something immediately
         update_plugins();
         update_timers();
         update_widgets();
         _display->layout->render();
         _display->refresh();
+    } catch (const std::exception& e) {
+        logger::warning["scheduler"] << "initial render skipped: " << e.what() << std::endl;
     }
 
     if (_stop.load(std::memory_order_relaxed)) return;

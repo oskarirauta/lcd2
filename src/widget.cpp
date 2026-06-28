@@ -162,17 +162,16 @@ void widget::add(const std::string& name, CONFIG::MAP *cfg) {
 
 	std::string _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));
 
-	if ( _name.empty() ||
-		_name.find_first_not_of("abcdefghijklmnopqrstuvwxyz1234567890_") != std::string::npos ||
+	if ( _name.empty()) {
+
+		logger::error["config"] << "syntax error, cannot create widget without name" << std::endl;
+		return;
+	} else if ( _name.find_first_not_of("abcdefghijklmnopqrstuvwxyz1234567890_") != std::string::npos ||
 		!std::isalpha(( unsigned char )_name.front())) {
 
 		logger::error["config"] << "illegal name '" << _name << "' for widget, names must begin " <<
 			"with alphabetical character and can only contain characters " <<
 			"from set 'abcdefghijklmnopqrstuvwxyz1234567890_'" << std::endl;
-		return;
-	} else if ( _name.empty()) {
-
-		logger::error["config"] << "syntax error, cannot create widget without name" << std::endl;
 		return;
 	} else if ( !cfg -> contains("class") && !cfg -> contains("type")) {
 
@@ -277,7 +276,7 @@ std::ostream& operator <<(std::ostream& os, widget::WIDGET const& w) {
 
 	for ( const auto& [k, v] : w._properties ) {
 
-		os << common::padding(2) << k << common::padding(20 - k.size()) << v << "\n";
+		os << common::padding(2) << k << common::padding(k.size() < 20 ? 20 - k.size() : 0) << v << "\n";
 	}
 
 	os << "}";

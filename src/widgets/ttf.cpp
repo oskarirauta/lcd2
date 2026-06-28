@@ -255,13 +255,14 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 	gdImage = gdImageCreateTrueColor(
 		p_width > 0 ? p_width : t_width,
 		p_height > 0 ? p_height : t_height );
-	gdImageSaveAlpha(gdImage, 1);
 
 	if ( gdImage == nullptr ) {
 
 		logger::error["widget"] << "ttf " << this -> _name << ": text " << this -> _name << ": CreateTrueColor failed" << std::endl;
 		return false;
 	}
+
+	gdImageSaveAlpha(gdImage, 1);
 
 	gdImageFill(gdImage, 0, 0, gdImageColorAllocateAlpha(gdImage, 0, 0, 0, 127));
 	f_color = gdImageColorAllocateAlpha(gdImage, rgba_color.R, rgba_color.G, rgba_color.B, rgba_color.GD_alpha());
@@ -316,6 +317,7 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 	if ( err = gdImageStringTTF(gdImage, b_rect.gd(), f_color, font.c_str(), p_size, 0.0, x, y, text.c_str()); err != nullptr ) {
 
 		logger::error["widget"] << "ttf " << this -> _name << ": text render error: " << err << std::endl;
+		gdImageDestroy(gdImage);
 		return false;
 	}
 
@@ -336,11 +338,16 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 		if ( ny < 1 ) ny = 1;
 
 		gdImagePtr scaled_image = gdImageCreateTrueColor(nx, ny);
-		gdImageSaveAlpha(scaled_image, 1);
-		gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
-		gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = scaled_image;
+
+		if ( scaled_image == nullptr )
+			logger::error["widget"] << "ttf " << this -> _name << ": CreateTrueColor (scale) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(scaled_image, 1);
+			gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
+			gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = scaled_image;
+		}
 	}
 
 	if ( this -> center()) {
@@ -351,11 +358,16 @@ bool widget::TTF::render(const std::string& text, const std::string& font) {
 		int cy = 0;
 
 		gdImagePtr center_image = gdImageCreateTrueColor(display -> width(), oy);
-		gdImageSaveAlpha(center_image, 1);
-		gdImageFill(center_image, 0, 0, gdImageColorAllocateAlpha(center_image, 0, 0, 0, 127));
-		gdImageCopyResized(center_image, gdImage, cx, cy, 0, 0, ox, oy, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = center_image;
+
+		if ( center_image == nullptr )
+			logger::error["widget"] << "ttf " << this -> _name << ": CreateTrueColor (center) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(center_image, 1);
+			gdImageFill(center_image, 0, 0, gdImageColorAllocateAlpha(center_image, 0, 0, 0, 127));
+			gdImageCopyResized(center_image, gdImage, cx, cy, 0, 0, ox, oy, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = center_image;
+		}
 	}
 
 	this -> _pwidth = this -> _width;

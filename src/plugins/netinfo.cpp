@@ -483,30 +483,30 @@ expr::VARIABLE plugin::NETINFO::fn_netinfo_tx_bytes(const expr::FUNCTION_ARGS& a
 	std::string ret;
 
 	if ( format == "b" || format == "bytes" )
-		ret = std::to_string(devices[ifd].rx.bytes);
+		ret = std::to_string(devices[ifd].tx.bytes);
 	else if ( format == "kib" || format == "kb" )
-		ret = common::to_string(devices[ifd].rx.KiB());
+		ret = common::to_string(devices[ifd].tx.KiB());
 	else if ( format == "mib" || format == "mb" )
-		ret = common::to_string(devices[ifd].rx.MiB());
+		ret = common::to_string(devices[ifd].tx.MiB());
 	else if ( format == "gib" || format == "gb" )
-		ret = common::to_string(devices[ifd].rx.GiB());
+		ret = common::to_string(devices[ifd].tx.GiB());
 	else {
 
 		std::string suffix = "GiB";
-		double v = devices[ifd].rx.GiB();
+		double v = devices[ifd].tx.GiB();
 
 		if ( v == 0 ) {
 			suffix = "MiB";
-			v = devices[ifd].rx.MiB();
+			v = devices[ifd].tx.MiB();
 		}
 
 		if ( v == 0 ) {
 			suffix = "KiB";
-			v = devices[ifd].rx.KiB();
+			v = devices[ifd].tx.KiB();
 		}
 
 		if ( v == 0 )
-			return std::to_string(devices[ifd].rx.bytes) + " bytes";
+			return std::to_string(devices[ifd].tx.bytes) + " bytes";
 		else ret = common::to_string(v) + " " + suffix;
 	}
 
@@ -531,7 +531,7 @@ plugin::NETINFO::NETINFO(CONFIG::MAP *cfg) {
 	CONFIG::functions.append({ "netinfo::scope", plugin::NETINFO::fn_netinfo_scope });
 	CONFIG::functions.append({ "netinfo::rx::packets", plugin::NETINFO::fn_netinfo_rx_packets });
 	CONFIG::functions.append({ "netinfo::rx::bytes", plugin::NETINFO::fn_netinfo_rx_bytes });
-	CONFIG::functions.append({ "netinfo::tx:packets", plugin::NETINFO::fn_netinfo_tx_packets });
+	CONFIG::functions.append({ "netinfo::tx::packets", plugin::NETINFO::fn_netinfo_tx_packets });
 	CONFIG::functions.append({ "netinfo::tx::bytes", plugin::NETINFO::fn_netinfo_tx_bytes });
 }
 
@@ -551,7 +551,7 @@ plugin::NETINFO::~NETINFO() {
 	CONFIG::functions.erase("netinfo::scope");
 	CONFIG::functions.erase("netinfo::rx::packets");
 	CONFIG::functions.erase("netinfo::rx::bytes");
-	CONFIG::functions.erase("netinfo::tx:packets");
+	CONFIG::functions.erase("netinfo::tx::packets");
 	CONFIG::functions.erase("netinfo::tx::bytes");
 
 }

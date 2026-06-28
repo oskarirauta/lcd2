@@ -110,33 +110,53 @@ DISPLAY::DISPLAY(CONFIG *cfg) {
 
 	this -> _backlight = _backlight;
 
+	// Everything below allocates owning resources (driver, plugins, widgets,
+	// actions, layout, scheduler) and can still throw via throws<< on a bad
+	// config. If construction fails after a partial allocation, ~DISPLAY never
+	// runs, so release what was allocated here — otherwise the driver's fd /
+	// USB handle leaks. (Driver dtors and the container dtors do not deref the
+	// not-yet-set global `display`, so this is safe during failed construction.)
 	try {
-		this -> init_driver(_driver, _device);
-	} catch ( const std::runtime_error& e ) {
-		this -> driver = nullptr;
-		throws << e.what() << std::endl;
+
+		try {
+			this -> init_driver(_driver, _device);
+		} catch ( const std::runtime_error& e ) {
+			this -> driver = nullptr;
+			throws << e.what() << std::endl;
+		}
+
+		if ( this -> driver == nullptr )
+			throws << "driver initialization failed, reason: unknown" << std::endl;
+
+		// add plugins
+		this -> plugins = new plugin;
+
+		// add timers
+		this -> init_timers(&cfg -> _cfg);
+
+		// add widgets
+		this -> widgets = new widget;
+		this -> init_widgets(&cfg -> _cfg);
+		this -> init_layout(&cfg -> _cfg);
+
+		if ( this -> layout == nullptr )
+			throws << "fatal error, layout not defined in configuration" << std::endl;
+
+		if ( cfg -> _cfg.contains("scheduler") && std::holds_alternative<CONFIG::MAP>(cfg -> _cfg["scheduler"]))
+			this -> init_scheduler(&(std::get<CONFIG::MAP>(cfg -> _cfg["scheduler"])));
+		else this -> init_scheduler(nullptr);
+
+	} catch (...) {
+
+		delete this -> scheduler; this -> scheduler = nullptr;
+		delete this -> layout;    this -> layout = nullptr;
+		this -> timers.clear();
+		delete this -> actions;   this -> actions = nullptr;
+		delete this -> widgets;   this -> widgets = nullptr;
+		delete this -> plugins;   this -> plugins = nullptr;
+		delete this -> driver;    this -> driver = nullptr;
+		throw;
 	}
-
-	if ( this -> driver == nullptr )
-		throws << "driver initialization failed, reason: unknown" << std::endl;
-
-	// add plugins
-	this -> plugins = new plugin;
-
-	// add timers
-	this -> init_timers(&cfg -> _cfg);
-
-	// add widgets
-	this -> widgets = new widget;
-	this -> init_widgets(&cfg -> _cfg);
-	this -> init_layout(&cfg -> _cfg);
-
-	if ( this -> layout == nullptr )
-		throws << "fatal error, layout not defined in configuration" << std::endl;
-
-        if ( cfg -> _cfg.contains("scheduler") && std::holds_alternative<CONFIG::MAP>(cfg -> _cfg["scheduler"]))
-                this -> init_scheduler(&(std::get<CONFIG::MAP>(cfg -> _cfg["scheduler"])));
-	else this -> init_scheduler(nullptr);
 }
 
 DISPLAY::~DISPLAY() {
@@ -768,7 +788,7 @@ void DISPLAY::clean_up() {
 		this -> _page = this -> layout -> default_page;
 	else if ( this -> layout -> pages.contains(0))
 		this -> _page = 0;
-	else this -> _page = this -> layout -> pages[0].number;
+	else this -> _page = this -> layout -> pages.begin() -> second.number;
 
 	if ( !this -> layout -> pages[this -> _page].on_enter.empty() &&
 		this -> timers.contains(this -> layout -> pages[this -> _page].on_enter)) {
@@ -879,7 +899,8 @@ bool DISPLAY::setpage(int page_no) {
 
 	if ( page_no != -1 && this -> scheduler -> exit_loop()) return true;
 
-	this -> layout -> render(&this -> _page);
+	int render_page = this -> _page;
+	this -> layout -> render(&render_page);
 
 	if ( page_no != -1 && this -> scheduler -> exit_loop()) return true;
 
@@ -929,7 +950,7 @@ std::ostream& operator <<(std::ostream& os, DISPLAY& d) {
 	os << "variables {\n";
 
 	for ( const auto& [k, v] : CONFIG::variables ) {
-		os << common::padding(2) << k << common::padding(20 - k.size());
+		os << common::padding(2) << k << common::padding(k.size() < 20 ? 20 - k.size() : 0);
 		if ( v.is_string())
 			os << "'" << v << "'" << "\n";
 		else os << v << "\n";
@@ -937,7 +958,7 @@ std::ostream& operator <<(std::ostream& os, DISPLAY& d) {
 
 	os << "}\n\ndisplay {\n";
 	for ( const auto& [k, v] : d._properties )
-		os << common::padding(2) << k << common::padding(20 - k.size()) << v << "\n";
+		os << common::padding(2) << k << common::padding(k.size() < 20 ? 20 - k.size() : 0) << v << "\n";
 
 	os << "}\n";
 

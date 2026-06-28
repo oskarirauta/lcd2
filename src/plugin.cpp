@@ -43,17 +43,16 @@ void plugin::add(const std::string& name, CONFIG::MAP *cfg) {
 
 	std::string _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));
 
-	if ( _name.empty() ||
-		_name.find_first_not_of("abcdefghijklmnopqrstuvwxyz1234567890_") != std::string::npos ||
+	if ( _name.empty()) {
+
+		logger::error["config"] << "syntax error, cannot create plugin without name" << std::endl;
+		return;
+	} else if ( _name.find_first_not_of("abcdefghijklmnopqrstuvwxyz1234567890_") != std::string::npos ||
 		!std::isalpha(( unsigned char )_name.front())) {
 
 		logger::error["config"] << "illegal name '" << _name << "' for plugin, names must begin " <<
 			"with alphabetical character and can only contain characters " <<
 			"from set 'abcdefghijklmnopqrstuvwxyz1234567890_'" << std::endl;
-		return;
-	} else if ( _name.empty()) {
-
-		logger::error["config"] << "syntax error, cannot create widget without name" << std::endl;
 		return;
 	}
 

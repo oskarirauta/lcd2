@@ -53,7 +53,7 @@ expr::VARIABLE plugin::FILE::fn_readline(const expr::FUNCTION_ARGS& args) {
 	}
 
 	std::string str;
-	while ( std::getline(fd, str) && line_no > 0 )
+	while ( line_no > 0 && std::getline(fd, str) )
 		line_no--;
 
 	if ( line_no > 0 )

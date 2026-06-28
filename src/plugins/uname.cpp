@@ -13,7 +13,7 @@ expr::VARIABLE plugin::UNAME::fn_sysname(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uname does not accept arguments" << std::endl;
 
 	utsname utsbuf;
-	if ( ::uname(&utsbuf) != 1 )
+	if ( ::uname(&utsbuf) == 0 )
 		return std::string(utsbuf.sysname);
 	else {
 		logger::error["plugin"] << "plugin uname failed to get values, reason: " << std::string(strerror(errno)) << std::endl;
@@ -27,7 +27,7 @@ expr::VARIABLE plugin::UNAME::fn_nodename(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uname does not accept arguments" << std::endl;
 
 	utsname utsbuf;
-	if ( ::uname(&utsbuf) != 1 )
+	if ( ::uname(&utsbuf) == 0 )
 		return std::string(utsbuf.nodename);
 	else {
 		logger::error["plugin"] << "plugin uname failed to get values, reason: " << std::string(strerror(errno)) << std::endl;
@@ -41,7 +41,7 @@ expr::VARIABLE plugin::UNAME::fn_release(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uname does not accept arguments" << std::endl;
 
 	utsname utsbuf;
-	if ( ::uname(&utsbuf) != 1 )
+	if ( ::uname(&utsbuf) == 0 )
 		return std::string(utsbuf.release);
 	else {
 		logger::error["plugin"] << "plugin uname failed to get values, reason: " << std::string(strerror(errno)) << std::endl;
@@ -55,7 +55,7 @@ expr::VARIABLE plugin::UNAME::fn_version(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uname does not accept arguments" << std::endl;
 
 	utsname utsbuf;
-	if ( ::uname(&utsbuf) != 1 )
+	if ( ::uname(&utsbuf) == 0 )
 		return std::string(utsbuf.version);
 	else {
 		logger::error["plugin"] << "plugin uname failed to get values, reason: " << std::string(strerror(errno)) << std::endl;
@@ -69,7 +69,7 @@ expr::VARIABLE plugin::UNAME::fn_machine(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uname does not accept arguments" << std::endl;
 
 	utsname utsbuf;
-	if ( ::uname(&utsbuf) != 1 )
+	if ( ::uname(&utsbuf) == 0 )
 		return std::string(utsbuf.machine);
 	else {
 		logger::error["plugin"] << "plugin uname failed to get values, reason: " << std::string(strerror(errno)) << std::endl;
@@ -84,7 +84,7 @@ expr::VARIABLE plugin::UNAME::fn_domainname(const expr::FUNCTION_ARGS& args) {
 		logger::warning["plugin"] << "plugin uname does not accept arguments" << std::endl;
 
 	utsname utsbuf;
-	if ( ::uname(&utsbuf) != 1 )
+	if ( ::uname(&utsbuf) == 0 )
 		return std::string(utsbuf.domainname);
 	else {
 		logger::error["plugin"] << "plugin uname failed to get values, reason: " << std::string(strerror(errno)) << std::endl;

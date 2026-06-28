@@ -134,7 +134,7 @@ void drv::DPF::set_pixel(int x, int y, const RGBA& c) {
 void drv::DPF::fill(const RGBA& c) {
 
 	std::fill(this -> canvas.begin(), this -> canvas.end(), c);
-	this -> ax_blit(this -> canvas, RECT(0, 0, this -> _pwidth + 1, this -> _pheight + 1));
+	this -> ax_blit(this -> canvas, RECT(0, 0, this -> _pwidth, this -> _pheight));
 
 	// Reset dirty rectangle
 	this -> rect_reset(this -> bounds);
@@ -229,7 +229,7 @@ void drv::DPF::blit_fullscreen() {
 
 		// small hack to avoid lost pixels
 		for ( int t = 0; t < 5 && rect.max.x < this -> _pwidth - 1; t++, rect.max.x++);
-		for ( int t = 0; t < 5 && rect.max.y > this -> _pheight; t++, rect.max.y++);
+		for ( int t = 0; t < 5 && rect.max.y < this -> _pheight - 1; t++, rect.max.y++);
 		for ( int t = 0; t < 5 && rect.min.x > 0; t++, rect.min.x--);
 		for ( int t = 0; t < 5 && rect.min.y > 0; t++, rect.min.y--);
 

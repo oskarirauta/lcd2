@@ -206,11 +206,16 @@ bool widget::IMAGE::render(const std::string& filename) {
 		if ( ny < 1 ) ny = 1;
 
 		gdImagePtr scaled_image = gdImageCreateTrueColor(nx, ny);
-		gdImageSaveAlpha(scaled_image, true);
-		gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
-		gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = scaled_image;
+
+		if ( scaled_image == nullptr )
+			logger::error["widget"] << "Image " << this -> _name << ": CreateTrueColor (fit) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(scaled_image, true);
+			gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
+			gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = scaled_image;
+		}
 	}
 
 	if (( p_scale > 0 && p_scale != 1.0 ) ||
@@ -230,11 +235,16 @@ bool widget::IMAGE::render(const std::string& filename) {
 		if ( ny < 1 ) ny = 1;
 
 		gdImagePtr scaled_image = gdImageCreateTrueColor(nx, ny);
-		gdImageSaveAlpha(scaled_image, 1);
-		gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
-		gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = scaled_image;
+
+		if ( scaled_image == nullptr )
+			logger::error["widget"] << "Image " << this -> _name << ": CreateTrueColor (scale) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(scaled_image, 1);
+			gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
+			gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = scaled_image;
+		}
 	}
 
 	if ( this -> center()) {
@@ -245,11 +255,16 @@ bool widget::IMAGE::render(const std::string& filename) {
 		int cy = 0;
 
 		gdImagePtr center_image = gdImageCreateTrueColor(display -> width(), oy);
-		gdImageSaveAlpha(center_image, 1);
-		gdImageFill(center_image, 0, 0, gdImageColorAllocateAlpha(center_image, 0, 0, 0, 127));
-		gdImageCopyResized(center_image, gdImage, cx, cy, 0, 0, ox, oy, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = center_image;
+
+		if ( center_image == nullptr )
+			logger::error["widget"] << "Image " << this -> _name << ": CreateTrueColor (center) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(center_image, 1);
+			gdImageFill(center_image, 0, 0, gdImageColorAllocateAlpha(center_image, 0, 0, 0, 127));
+			gdImageCopyResized(center_image, gdImage, cx, cy, 0, 0, ox, oy, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = center_image;
+		}
 	}
 
 	this -> _pwidth = this -> _width;

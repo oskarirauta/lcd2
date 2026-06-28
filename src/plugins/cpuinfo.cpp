@@ -51,7 +51,7 @@ static expr::VARIABLE fn_cpuinfo(const expr::FUNCTION_ARGS& args) {
 		if ( idx >= cpu -> size()) {
 
 			logger::error["plugin"] << "cannot retrieve value for cpu" << idx << ", out of bounds, range is 0 - " << cpu -> size() << std::endl;
-			idx = -1;
+			return "";
 		}
 	}
 
@@ -97,7 +97,7 @@ static expr::VARIABLE fn_cpuload(const expr::FUNCTION_ARGS& args) {
 	if ( !args.empty() && args[0].number_convertible().empty()) {
 
 		size_t i = (int)args[0].to_int();
-		if ( i >= 0 && i <= cpu -> size()) {
+		if ( i < cpu -> size()) {
 
 			try {
 				return cpu -> operator[](i).load();

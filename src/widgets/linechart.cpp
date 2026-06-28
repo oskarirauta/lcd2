@@ -189,7 +189,7 @@ static unsigned char val_to_percent(unsigned char value, unsigned char min, unsi
 	if ( val > vmax ) val = vmax;
 	if ( val < vmin ) val = vmin;
 
-	pval = (( val - vmin ) * 100 ) / ( vmax - vmin );
+	pval = ( vmax - vmin ) > 0 ? (( val - vmin ) * 100 ) / ( vmax - vmin ) : 0;
 	if ( pval < 0 ) pval = 0;
 	if ( pval > 99 ) pval = 99;
 
@@ -204,7 +204,7 @@ bool widget::LINECHART::render() {
 	int p_width = this -> P2I("width", 20 ) < 20 ? 20 : this -> P2I("width", 20);
 	int p_height = this -> P2I("height", 10 ) < 10 ? 10: this -> P2I("height", 10);
 	int p_smooth = this -> P2I("smooth", 0);
-	double p_scale = this -> P2N("scale", 1.0 ) < 0 ? 1.0 : this -> P2N("scale", 1.0);
+	double p_scale = this -> P2N("scale", 1.0);
 	double p_opacity = this -> P2N("opacity", 1.0);
 	bool p_inverted = this -> P2B("inverted", false);
 	std::string p_fgcolor  = this -> P2S("fgcolor",   "ffffff");
@@ -347,7 +347,8 @@ bool widget::LINECHART::render() {
 		prev = cur;
 	}
 
-	if ( p_scale > 0 && p_scale != 1.0 ) {
+	if (( p_scale > 0 && p_scale != 1.0 ) ||
+		( p_scale < 0 && p_width > 0 )) {
 
 		int ox = gdImageSX(gdImage);
 		int oy = gdImageSY(gdImage);
@@ -363,11 +364,16 @@ bool widget::LINECHART::render() {
 		if ( ny < 1 ) ny = 1;
 
 		gdImagePtr scaled_image = gdImageCreateTrueColor(nx, ny);
-		gdImageSaveAlpha(scaled_image, 1);
-		gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
-		gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = scaled_image;
+
+		if ( scaled_image == nullptr )
+			logger::error["widget"] << "linechart widget " << this -> _name << ", CreateTrueColor (scale) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(scaled_image, 1);
+			gdImageFill(scaled_image, 0, 0, gdImageColorAllocateAlpha(scaled_image, 0, 0, 0, 127));
+			gdImageCopyResized(scaled_image, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = scaled_image;
+		}
 	}
 
 	if ( this -> center()) {
@@ -378,11 +384,16 @@ bool widget::LINECHART::render() {
 		int cy = 0;
 
 		gdImagePtr center_image = gdImageCreateTrueColor(display -> width(), oy);
-		gdImageSaveAlpha(center_image, 1);
-		gdImageFill(center_image, 0, 0, gdImageColorAllocateAlpha(center_image, 0, 0, 0, 127));
-		gdImageCopyResized(center_image, gdImage, cx, cy, 0, 0, ox, oy, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = center_image;
+
+		if ( center_image == nullptr )
+			logger::error["widget"] << "linechart widget " << this -> _name << ", CreateTrueColor (center) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(center_image, 1);
+			gdImageFill(center_image, 0, 0, gdImageColorAllocateAlpha(center_image, 0, 0, 0, 127));
+			gdImageCopyResized(center_image, gdImage, cx, cy, 0, 0, ox, oy, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = center_image;
+		}
 	}
 
 	this -> _pwidth = this -> _width;

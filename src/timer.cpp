@@ -290,9 +290,8 @@ bool TIMER::update() {
 		if ( auto _p = this -> property["condition"]; _p.is_number() && _p.to_int() != 0 )
 			display -> actions -> execute(this -> _properties["action"], "timer::" + this -> _name);
 
-	} else if (( !this -> _properties.contains("condition") || this -> _properties.contains("condition")) &&
-		this -> _properties["condition"].empty() && this -> _properties.contains("action") &&
-		!this -> _properties["action"].empty()) {
+	} else if ( this -> _properties.contains("action") && !this -> _properties["action"].empty() &&
+		( !this -> _properties.contains("condition") || this -> _properties["condition"].empty())) {
 
 			display -> actions -> execute(this -> _properties["action"], "timer::" + this -> _name);
 	}
@@ -354,7 +353,7 @@ std::ostream& operator <<(std::ostream& os, TIMER const& t) {
 		if ( k.starts_with("expression"))
 			continue;
 		else
-			os << common::padding(2) << k << common::padding(20 - k.size()) << v << "\n";
+			os << common::padding(2) << k << common::padding(k.size() < 20 ? 20 - k.size() : 0) << v << "\n";
 	}
 
 	os << "}";

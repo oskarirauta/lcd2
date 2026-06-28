@@ -30,7 +30,7 @@ static unsigned char val_to_percent(unsigned char value, unsigned char min, unsi
 	if ( val > vmax ) val = vmax;
 	if ( val < vmin ) val = vmin;
 
-	pval = (int)((( val - vmin ) * 100 ) / ( vmax - vmin ));
+	pval = ( vmax - vmin ) > 0 ? (int)((( val - vmin ) * 100 ) / ( vmax - vmin )) : 0;
 	if ( pval < 0 )  pval = 0;
 	if ( pval > 99 ) pval = 99;
 
@@ -378,11 +378,16 @@ bool widget::CURVECHART::render() {
 		if ( ny < 1 ) ny = 1;
 
 		gdImagePtr scaled = gdImageCreateTrueColor(nx, ny);
-		gdImageSaveAlpha(scaled, 1);
-		gdImageFill(scaled, 0, 0, gdImageColorAllocateAlpha(scaled, 0, 0, 0, 127));
-		gdImageCopyResized(scaled, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = scaled;
+
+		if ( scaled == nullptr )
+			logger::error["widget"] << "curvechart widget " << this -> _name << ", CreateTrueColor (scale) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(scaled, 1);
+			gdImageFill(scaled, 0, 0, gdImageColorAllocateAlpha(scaled, 0, 0, 0, 127));
+			gdImageCopyResized(scaled, gdImage, 0, 0, 0, 0, nx, ny, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = scaled;
+		}
 	}
 
 	// Optional horizontal center
@@ -393,11 +398,16 @@ bool widget::CURVECHART::render() {
 		int cx = ( display -> width() * 0.5 ) - ( ox * 0.5 );
 
 		gdImagePtr centered = gdImageCreateTrueColor(display -> width(), oy);
-		gdImageSaveAlpha(centered, 1);
-		gdImageFill(centered, 0, 0, gdImageColorAllocateAlpha(centered, 0, 0, 0, 127));
-		gdImageCopyResized(centered, gdImage, cx, 0, 0, 0, ox, oy, ox, oy);
-		gdImageDestroy(gdImage);
-		gdImage = centered;
+
+		if ( centered == nullptr )
+			logger::error["widget"] << "curvechart widget " << this -> _name << ", CreateTrueColor (center) failed" << std::endl;
+		else {
+			gdImageSaveAlpha(centered, 1);
+			gdImageFill(centered, 0, 0, gdImageColorAllocateAlpha(centered, 0, 0, 0, 127));
+			gdImageCopyResized(centered, gdImage, cx, 0, 0, 0, ox, oy, ox, oy);
+			gdImageDestroy(gdImage);
+			gdImage = centered;
+		}
 	}
 
 	this -> _pwidth  = this -> _width;

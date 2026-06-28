@@ -764,7 +764,7 @@ const std::string LAYOUT::dump() {
 		ss << "\n\tpage " << page.second.number << " {" <<
 			( display -> _page == page.second.number ? " # active" : "" ) << "\n";
 
-		if ( !page.second.on_enter.empty() || !page.second.on_enter.empty())
+		if ( !page.second.on_enter.empty() || !page.second.on_exit.empty())
 			ss << "\n";
 
 		if ( !page.second.on_enter.empty())

@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <atomic>
 
 #include "config.hpp"
 #include "tsl/ordered_map.h"
@@ -29,7 +30,11 @@ class DISPLAY : public PROPERTIES {
 
 		ORIENTATION _orientation;
 		int _backlight;
-		int _page = 0;
+		// Read on the render thread (page_number snapshot, layout->render) and
+		// written on the data thread (setpage from timer actions); atomic to
+		// avoid a torn read/write data race. Compound check-then-set in
+		// page_number() is additionally serialised by the scheduler's mutex.
+		std::atomic<int> _page{0};
 		int _width, _height;
 
 		std::vector<RGBA> new_layer();
@@ -72,6 +77,9 @@ class DISPLAY : public PROPERTIES {
 		void clear();
 		int page_number();
 		bool page_number(int page_no);
+		// Non-throwing accessor for the currently active page (unlike
+		// page_number(), which throws when the page is absent from the canvas).
+		int page_current() { return this -> _page; }
 		void refresh();
 		void add_pixel(int x, int y, int page, int layer, RGBA color);
 

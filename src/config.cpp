@@ -52,7 +52,7 @@ static std::string dump_cfg(const CONFIG::MAP& m, int level) {
 
 		if ( std::holds_alternative<std::string>(v)) {
 
-			ss << common::padding(20 - k.size()) << " " << std::get<std::string>(v) << "\n";
+			ss << common::padding(k.size() < 20 ? 20 - k.size() : 0) << " " << std::get<std::string>(v) << "\n";
 
 		} else if ( std::holds_alternative<CONFIG::MAP>(v)) {
 
@@ -186,7 +186,8 @@ static std::string quickfix_value(const std::string& s) {
 
 			if ( ss.front() == '\\' && ss.size() > 1 && ss.at(1) == quote ) {
 
-				res += '\\' + quote;
+				res += '\\';
+				res += quote;
 				ss.erase(0, 2);
 				continue;
 			}
@@ -369,7 +370,7 @@ static void parse_cfg(std::ifstream& fd, CONFIG::MAP& cfg, bool root) {
 
 		name = common::to_lower(common::unquoted(name));
 
-		if ( !root && name.front() == '}' ) {
+		if ( !root && !name.empty() && name.front() == '}' ) {
 
 			value.erase(0, 1);
 
