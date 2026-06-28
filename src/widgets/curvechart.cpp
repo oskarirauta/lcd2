@@ -167,6 +167,9 @@ widget::CURVECHART::CURVECHART(const std::string& name, CONFIG::MAP *cfg) {
 	if ( p_samples > p_width )
 		p_samples = p_width;
 
+	if ( p_samples < 1 )	// width/samples <= 0 would leave the ring buffer empty
+		p_samples = 1;		// and crash the rotate / _values[num_samples - 1] below
+
 	this -> _num_samples = (size_t)p_samples;
 	this -> _values.assign(this -> _num_samples, 0);
 	this -> next_value = this -> P2I("min", 0);

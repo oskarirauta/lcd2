@@ -6,13 +6,12 @@
 
 void action::PREVPAGE::execute(const std::vector<expr::RESULT>& args) {
 
-	if ( !args.empty()) {
+	if ( !args.empty())
+		logger::warning["action"] << "arguments are not used with page::prev action, arguments ignored" << std::endl;
 
-		logger::warning["action"] << "arguments are not used with page::next action, arguments ignored" << std::endl;
+	if ( display -> layout -> page_sequence.empty()) {
 
-	} else if ( display -> layout -> page_sequence.empty()) {
-
-		logger::error["action"] << "action page::next is not available, layout page sequence is empty" << std::endl;
+		logger::error["action"] << "action page::prev is not available, layout page sequence is empty" << std::endl;
 		return;
 	}
 

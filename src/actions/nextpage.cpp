@@ -6,11 +6,10 @@
 
 void action::NEXTPAGE::execute(const std::vector<expr::RESULT>& args) {
 
-	if ( !args.empty()) {
-
+	if ( !args.empty())
 		logger::warning["action"] << "arguments are not used with page::next action, arguments ignored" << std::endl;
 
-	} else if ( display -> layout -> page_sequence.empty()) {
+	if ( display -> layout -> page_sequence.empty()) {
 
 		logger::error["action"] << "action page::next is not available, layout page sequence is empty" << std::endl;
 		return;
