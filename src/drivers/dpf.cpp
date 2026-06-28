@@ -228,7 +228,7 @@ void drv::DPF::blit_fullscreen() {
 			break;
 
 		// small hack to avoid lost pixels
-		for ( int t = 0; t < 5 && rect.max.x < this -> _pwidth; t++, rect.max.x++);
+		for ( int t = 0; t < 5 && rect.max.x < this -> _pwidth - 1; t++, rect.max.x++);
 		for ( int t = 0; t < 5 && rect.max.y > this -> _pheight; t++, rect.max.y++);
 		for ( int t = 0; t < 5 && rect.min.x > 0; t++, rect.min.x--);
 		for ( int t = 0; t < 5 && rect.min.y > 0; t++, rect.min.y--);
