@@ -117,7 +117,7 @@ expr::VARIABLE plugin::FILE::fn_readconf(const expr::FUNCTION_ARGS& args) {
 		if ( str.starts_with(key)) {
 
 			str.erase(0, key.size());
-			while ( common::whitespace.contains(str.front()))
+			while ( !str.empty() && common::whitespace.contains(str.front()))
 				str.erase(0, 1);
 			value = common::trim_ws(common::unquoted(common::trim_ws(str)));
 			break;

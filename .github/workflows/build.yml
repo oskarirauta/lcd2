@@ -2,6 +2,8 @@ name: "C++ CI build"
 run-name: ${{ github.actor }} executed build ${{ inputs.testname }}
 
 on:
+  push:
+  pull_request:
   workflow_dispatch:
     inputs:
       testname:
@@ -12,7 +14,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: install libgd
       run: sudo apt -y install libgd-dev
     - name: install libdrm

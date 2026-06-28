@@ -25,7 +25,7 @@ bool RGBA::check_color(const std::string& hex) {
 
 	std::string s(hex);
 
-	if ( s.front() == '#' )
+	if ( !s.empty() && s.front() == '#' )
 		s.erase(0, 1);
 
 	// Valid lengths: 3 (RGB shorthand), 4 (RGBA shorthand), 6 (RGB), 8 (RGBA).
@@ -34,7 +34,7 @@ bool RGBA::check_color(const std::string& hex) {
 		return false;
 
 	for ( char ch : s )
-		if ( !std::isdigit(ch) && ( ch < 'A' || ch > 'F' ) && ( ch < 'a' || ch > 'f' ))
+		if ( !std::isdigit(( unsigned char )ch) && ( ch < 'A' || ch > 'F' ) && ( ch < 'a' || ch > 'f' ))
 			return false;
 
 	return true;
@@ -51,12 +51,14 @@ const std::string RGBA::hex_normalizer(const std::string& hex) {
 
 	std::string out(in);
 
+	// note: in.at(0) + in.at(0) would be integer arithmetic (char + char -> int),
+	// not concatenation, so build the expanded string from a char list
 	if ( in.size() == 3 )
-		out = in.at(0) + in.at(0) + in.at(1) + in.at(1) + in.at(2) + in.at(2);
+		out = { in.at(0), in.at(0), in.at(1), in.at(1), in.at(2), in.at(2) };
 	else if ( in.size() == 4 )
-		out = in.at(0) + in.at(0) + in.at(1) + in.at(1) + in.at(2) + in.at(2) + in.at(3) + in.at(3);
+		out = { in.at(0), in.at(0), in.at(1), in.at(1), in.at(2), in.at(2), in.at(3), in.at(3) };
 	else if ( in.size() == 5 )
-		out = in.at(0) + in.at(0) + in.at(1) + in.at(1) + in.at(2) + in.at(2) + in.at(3) + in.at(4);
+		out = { in.at(0), in.at(0), in.at(1), in.at(1), in.at(2), in.at(2), in.at(3), in.at(4) };
 
 	if ( out.empty())
 		throw std::runtime_error("hex color string is empty");
@@ -64,7 +66,7 @@ const std::string RGBA::hex_normalizer(const std::string& hex) {
 		throw std::runtime_error("hex color string length not acceptable: " + hex);
 
 	for ( auto &c : out )
-		c = std::tolower(c);
+		c = std::tolower(( unsigned char )c);
 
 	if ( std::string::npos != out.find_first_not_of("0123456789abcdef"))
 		throw std::runtime_error("hex color contains letters outside of hex range (0123456789abcdef): " + hex);

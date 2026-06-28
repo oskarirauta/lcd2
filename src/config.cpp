@@ -100,11 +100,11 @@ static std::string trim_first_word(const std::string& s, std::string& value) {
 	if ( ss.front() == '\'' || ss.front() == '"' ) {
 		auto quote = ss.front();
 		ss.erase(0, 1);
-		if ( ss.front() == quote ) value = "";
+		if ( ss.empty() || ss.front() == quote ) value = "";
 		else if ( auto pos = ss.find_first_of(quote); pos != std::string::npos ) {
 			value = "";
 			value += std::string(ss.substr(0, pos));
-			while ( common::whitespace.find(value.back()) != std::string::npos )
+			while ( !value.empty() && common::whitespace.find(value.back()) != std::string::npos )
 				value.pop_back();
 		}
 
@@ -117,7 +117,7 @@ static std::string trim_first_word(const std::string& s, std::string& value) {
 		std::string ret(ss.substr(pos + 1, ss.size() - (pos + 1)));
 		if ( !ret.empty()) {
 			value = std::string(ss.substr(0, ss.size() - ret.size()));
-			while ( common::whitespace.find(value.back()) != std::string::npos )
+			while ( !value.empty() && common::whitespace.find(value.back()) != std::string::npos )
 				value.pop_back();
 		}
 		return ret;
@@ -139,23 +139,23 @@ static std::string quickfix_value(const std::string& s) {
 
 	std::string res;
 
-	if ( std::isdigit(ss.front()) || ( ss.size() > 1 && ss.front() == '.' && std::isdigit(ss.at(1)))) { // number value
+	if ( std::isdigit(( unsigned char )ss.front()) || ( ss.size() > 1 && ss.front() == '.' && std::isdigit(( unsigned char )ss.at(1)))) { // number value
 
 		if ( !ss.empty() && ss.front() == '.' ) {
 			res = "0.";
 			ss.erase(0, 1);
 		}
 
-		while ( !ss.empty() && std::isdigit(ss.front())) {
+		while ( !ss.empty() && std::isdigit(( unsigned char )ss.front())) {
 
 			res += ss.front();
 			ss.erase(0, 1);
 
-			if ( ss.front() == '.' && ss.size() == 1 ) {
+			if ( !ss.empty() && ss.front() == '.' && ss.size() == 1 ) {
 
 				ss.erase(0, 1);
 
-			} else if ( ss.front() == '.' && ss.size() > 1 && std::isdigit(ss.at(1))) {
+			} else if ( !ss.empty() && ss.front() == '.' && ss.size() > 1 && std::isdigit(( unsigned char )ss.at(1))) {
 
 				res += '.';
 				ss.erase(0, 1);
@@ -321,7 +321,7 @@ static void parse_array(std::ifstream& fd, CONFIG::VECTOR& cfg, bool full_lines)
 				line.erase(0, 1);
 			}
 
-			if ( quote != 0 && line.front() == quote )
+			if ( quote != 0 && !line.empty() && line.front() == quote )
 				line.erase(0, 1);
 
 			name = common::unquoted(name);
@@ -332,16 +332,16 @@ static void parse_array(std::ifstream& fd, CONFIG::VECTOR& cfg, bool full_lines)
 				name = "";
 			}
 
-			if ( line = common::ltrim_ws(line, sep); line.front() == '#' || line.front() == ']' )
+			if ( line = common::ltrim_ws(line, sep); !line.empty() && ( line.front() == '#' || line.front() == ']' ))
 				break;
 		}
 
-		if ( line.front() == ']' )
+		if ( !line.empty() && line.front() == ']' )
 			break;
 
 	}
 
-	if ( line.front() != ']' )
+	if ( line.empty() || line.front() != ']' )
 		throw std::runtime_error("un-even brackets, ']' missing at end of array");
 }
 
@@ -375,7 +375,7 @@ static void parse_cfg(std::ifstream& fd, CONFIG::MAP& cfg, bool root) {
 
 			if ( !value.empty()) {
 				if ( value = common::trim_ws(value); !value.empty() && value.front() != '#' )
-					logger::warning["config"] << "line " + line_no << ": garbage after '}' <" << value << ">" << std::endl;
+					logger::warning["config"] << "line " << line_no << ": garbage after '}' <" << value << ">" << std::endl;
 			}
 
 			break;
@@ -471,12 +471,15 @@ static void parse_cfg(std::ifstream& fd, CONFIG::MAP& cfg, bool root) {
 		}
 
 
-		if ( std::string last_part = trim_first_word(line, value);
-			last_part.front() == '{' || line.front() == '{' || last_part.front() == '[' || line.front() == '[' ) {
+		std::string last_part = trim_first_word(line, value);
+		char lp_front = last_part.empty() ? 0 : last_part.front();
+		char ln_front = line.empty() ? 0 : line.front();
 
-			bool is_array = line.front() == '[' || last_part.front() == '[';
+		if ( lp_front == '{' || ln_front == '{' || lp_front == '[' || ln_front == '[' ) {
 
-			if ( line.front() == '{' || line.front() == '[' ) {
+			bool is_array = ln_front == '[' || lp_front == '[';
+
+			if ( ln_front == '{' || ln_front == '[' ) {
 				value = "";
 				last_part = line;
 			}
@@ -487,7 +490,7 @@ static void parse_cfg(std::ifstream& fd, CONFIG::MAP& cfg, bool root) {
 			if ( !last_part.empty()) {
 
 				if ( last_part = common::trim_ws(last_part); !last_part.empty() && last_part.front() != '#' )
-					logger::warning["config"] << "line " + line_no << ": garbage after '{' <" << last_part << ">" << std::endl;
+					logger::warning["config"] << "line " << line_no << ": garbage after '{' <" << last_part << ">" << std::endl;
 
 			}
 

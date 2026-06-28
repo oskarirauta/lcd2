@@ -102,6 +102,11 @@ TIMER::TIMER(const std::string& name, CONFIG::MAP *cfg) {
 			continue;
 		}
 
+		if ( !std::holds_alternative<std::string>(v)) {
+			logger::error["config"] << "timer " << name << " key '" << k << "' cannot be an object or array" << std::endl;
+			continue;
+		}
+
 		std::string value = std::get<std::string>(v);
 
 		if ( !CONFIG::parse_option("timer", key, value, &allowed_keys))

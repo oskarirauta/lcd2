@@ -38,7 +38,7 @@ static bool parse_coords(const std::string& value, int& x, int& y) {
 
 	std::string _value = common::unquoted(common::to_lower(common::trim_ws(std::as_const(value))));
 
-	if ( _value.empty() || ( _value.front() != 'x' && !std::isdigit(_value.front())))
+	if ( _value.empty() || ( _value.front() != 'x' && !std::isdigit(( unsigned char )_value.front())))
 		return false;
 
 	while (1) {
@@ -55,7 +55,7 @@ static bool parse_coords(const std::string& value, int& x, int& y) {
 		else break;
 	}
 
-	if ( _value.front() == 'x' && _value.size() > 1 && std::isdigit(_value.at(1))) { // convert old format to new format
+	if ( _value.front() == 'x' && _value.size() > 1 && std::isdigit(( unsigned char )_value.at(1))) { // convert old format to new format
 
 		if ( auto pos1 = _value.find_first_of('x'); pos1 != std::string::npos )
 			if ( auto pos2 = _value.find_first_of(','); pos2 == std::string::npos )
@@ -86,7 +86,7 @@ static bool parse_coords(const std::string& value, int& x, int& y) {
 		}
 	}
 
-	if ( _value.find_first_not_of("1234567890,") != std::string::npos || !std::isdigit(_value.front()))
+	if ( _value.find_first_not_of("1234567890,") != std::string::npos || !std::isdigit(( unsigned char )_value.front()))
 		return false;
 
 	size_t c = 0;
@@ -103,7 +103,7 @@ static bool parse_coords(const std::string& value, int& x, int& y) {
 		std::string sy = _value;
 		sy.erase(0, pos);
 		while ( sx.back() == ',' ) sx.pop_back();
-		while ( sy.front() == ',' ) sy.erase(0, 1);
+		while ( !sy.empty() && sy.front() == ',' ) sy.erase(0, 1);
 		sx = common::trim_ws(sx);
 		sy = common::trim_ws(sy);
 
@@ -152,7 +152,7 @@ std::vector<int> LAYOUT::parse_page_sequence(const std::string& s) {
 	std::string arg;
 	for ( const auto& ch : _s ) {
 
-		if ( std::isdigit(ch)) {
+		if ( std::isdigit(( unsigned char )ch)) {
 			arg += ch;
 			continue;
 		} else if ( ch == '-' && arg.empty()) {
@@ -356,7 +356,7 @@ LAYOUT::LAYOUT(CONFIG::MAP *cfg) {
 
 			std::string def_s = common::trim_ws(common::unquoted(common::trim_ws(std::as_const(std::get<std::string>(v)))));
 
-			if ( def_s.front() == '-' && def_s.size() > 1 && def_s.substr(1, def_s.size() - 1).find_first_not_of("1234567890") == std::string::npos ) {
+			if ( !def_s.empty() && def_s.front() == '-' && def_s.size() > 1 && def_s.substr(1, def_s.size() - 1).find_first_not_of("1234567890") == std::string::npos ) {
 
 				def_s.erase(0, 1);
 
@@ -483,7 +483,7 @@ LAYOUT::LAYOUT(CONFIG::MAP *cfg) {
 
 					continue;
 
-				} else if ( page_no == -1 && key == "timers" ) {
+				} else if ( page_no == -1 && key2 == "timers" ) {
 
 					logger::error["config"] << "syntax error, goodbye page does not support timers" << std::endl;
 					continue;
@@ -534,7 +534,7 @@ LAYOUT::LAYOUT(CONFIG::MAP *cfg) {
 				} else if ( key2 == "timers" ) {
 
 					this -> pages[page_no].timers = std::get<CONFIG::VECTOR>(v2);
-					this -> timers.erase(std::unique(this -> timers.begin(), this -> timers.end()), this -> timers.end());
+					this -> pages[page_no].timers.erase(std::unique(this -> pages[page_no].timers.begin(), this -> pages[page_no].timers.end()), this -> pages[page_no].timers.end());
 					continue;
 
 				} else if ( key2.starts_with("layer:") && !std::holds_alternative<CONFIG::MAP>(v2)) {
@@ -702,7 +702,7 @@ LAYOUT::LAYOUT(CONFIG::MAP *cfg) {
 		logger::error["config"] << "default page " << this -> default_page << " does not exist in layout, setting page " <<
 						new_default << " as default page" << std::endl;
 
-		this -> default_page = this -> pages[0].number;
+		this -> default_page = new_default;
 	}
 
 	// validate page sequence

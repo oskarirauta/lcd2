@@ -162,8 +162,9 @@ void widget::add(const std::string& name, CONFIG::MAP *cfg) {
 
 	std::string _name = common::unquoted(common::to_lower(common::trim_ws(std::as_const(name))));
 
-	if ( _name.find_first_not_of("abcdefghijklmnopqrstuvwxyz1234567890_") != std::string::npos ||
-		!std::isalpha(_name.front())) {
+	if ( _name.empty() ||
+		_name.find_first_not_of("abcdefghijklmnopqrstuvwxyz1234567890_") != std::string::npos ||
+		!std::isalpha(( unsigned char )_name.front())) {
 
 		logger::error["config"] << "illegal name '" << _name << "' for widget, names must begin " <<
 			"with alphabetical character and can only contain characters " <<
