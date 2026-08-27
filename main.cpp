@@ -6,7 +6,7 @@
 #include "display.hpp"
 #include "usage.hpp"
 
-#define LCD2_VERSION "1.2.1"
+#define LCD2_VERSION "1.3.0"
 
 static void die_handler(int signum) {
 	logger::info << SIG::to_string(signum) << " received, exiting" << std::endl;

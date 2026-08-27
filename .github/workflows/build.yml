@@ -15,13 +15,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
-    - name: install libgd
-      run: sudo apt -y install libgd-dev
-    - name: install libdrm
-      run: sudo apt -y install libdrm-dev
-    - name: install libusb
-      run: sudo apt -y install libusb-dev libusb-1.0-0-dev
-    - name: submodules
-      run: git submodule update --init --recursive --remote
-    - name: make
-      run: make
+      with:
+        submodules: recursive
+    # Build inside an Alpine container: matches the OpenWrt/musl packaging
+    # environment used by other repos (and sidesteps actions/checkout's glibc
+    # node not running on musl by using docker run instead of container:).
+    - name: make (Alpine)
+      run: |
+        docker run --rm -v "$PWD":/src -w /src alpine:edge sh -c '
+          apk add --no-cache build-base linux-headers \
+            gd-dev libdrm-dev libusb-compat-dev &&
+          make
+        '
