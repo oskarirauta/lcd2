@@ -4,6 +4,10 @@ all: world
 
 CXX?=g++
 CXXFLAGS?=--std=c++23 -Os -Wall -fPIC -g
+# Auto-generated header dependencies: without these a header edit does not
+# trigger recompiles (the explicit rules only name the .cpp), leaving stale
+# objects with mismatching class layouts in the final link.
+CXXFLAGS+=-MMD -MP
 LDFLAGS?=-L/lib -L/usr/lib
 DRM_INCLUDES?=-I/usr/include/libdrm
 
@@ -90,3 +94,5 @@ lcd2: $(COMMON_OBJS) $(LOGGER_OBJS) $(THROWS_OBJS) $(SIGNAL_OBJS) \
 .PHONY: clean
 clean:
 	@rm -rf objs lcd2
+
+-include $(wildcard objs/*.d)
