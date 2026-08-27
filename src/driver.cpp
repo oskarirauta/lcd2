@@ -4,7 +4,6 @@
 #include "throws.hpp"
 #include "logger.hpp"
 #include "common.hpp"
-#include "throws.hpp"
 #include "display.hpp"
 #include "driver.hpp"
 

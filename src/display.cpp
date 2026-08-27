@@ -78,7 +78,7 @@ DISPLAY::DISPLAY(CONFIG *cfg) {
 	if ( _bg = this -> P2S("background"); !_bg.empty()) {
 
 		if ( !RGBA::check_color(_bg)) {
-			logger::error["display"] << "invalid foreground color '" << _bg << "'" << std::endl;
+			logger::error["display"] << "invalid background color '" << _bg << "'" << std::endl;
 			_bg = "000000";
 		}
 	} else _bg = "000000";
@@ -164,7 +164,7 @@ DISPLAY::~DISPLAY() {
 	if ( this -> driver != nullptr ) {
 
 		try {
-			display -> page_number();
+			this -> page_number();
 			this -> driver -> clear();
 		} catch ( const std::runtime_error& e ) {}
 		delete this -> driver;
